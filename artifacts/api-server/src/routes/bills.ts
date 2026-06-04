@@ -1,7 +1,8 @@
 import { Router } from "express";
-import { db, bills, billLineItems, vendors, taxRates } from "@workspace/db";
+import { db, bills, billLineItems, vendors, taxRates, accounts, journalEntries, journalLines } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../lib/session";
+import { postEntry } from "../lib/ledger";
 
 const router = Router();
 
@@ -144,12 +145,84 @@ router.delete("/bills/:id", async (req, res) => {
   res.status(204).send();
 });
 
+router.post("/bills/:id/enter", async (req, res) => {
+  const orgId = req.session.organizationId!;
+  const [existing] = await db.select().from(bills)
+    .where(and(eq(bills.id, req.params.id), eq(bills.organizationId, orgId)));
+  if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+  if (existing.status !== "DRAFT") { res.status(400).json({ error: "Only DRAFT bills can be entered" }); return; }
+
+  const lines = await db.select().from(billLineItems)
+    .where(eq(billLineItems.billId, existing.id));
+
+  // Find AP account (systemRole = "AP") and first expense account
+  const [apAccount] = await db.select().from(accounts)
+    .where(and(eq(accounts.organizationId, orgId), eq(accounts.systemRole, "AP")));
+  const [expenseAccount] = await db.select().from(accounts)
+    .where(and(
+      eq(accounts.organizationId, orgId),
+      eq(accounts.type, "EXPENSE"),
+      // @ts-ignore
+      eq(accounts.subtype as any, "expense")
+    ));
+
+  if (apAccount && expenseAccount) {
+    const entryLines: Array<{ accountId: string; debitCents: number; creditCents: number }> = [
+      { accountId: expenseAccount.id, debitCents: existing.subtotalCents, creditCents: 0 },
+      { accountId: apAccount.id, debitCents: 0, creditCents: existing.totalCents },
+    ];
+    if (existing.taxCents > 0) {
+      const [taxAccount] = await db.select().from(accounts)
+        .where(and(eq(accounts.organizationId, orgId), eq(accounts.systemRole, "SALES_TAX_PAYABLE")));
+      entryLines.push({ accountId: (taxAccount ?? expenseAccount).id, debitCents: existing.taxCents, creditCents: 0 });
+    }
+    await postEntry({
+      organizationId: orgId,
+      date: existing.issueDate,
+      memo: `${existing.number} entered`,
+      sourceType: "BILL",
+      sourceId: existing.id,
+      lines: entryLines,
+    });
+  }
+
+  const [bill] = await db.update(bills).set({ status: "OPEN" })
+    .where(eq(bills.id, req.params.id)).returning();
+  res.json(serializeBill(bill));
+});
+
 router.post("/bills/:id/void", async (req, res) => {
   const orgId = req.session.organizationId!;
-  const [bill] = await db.update(bills).set({ status: "VOID" })
-    .where(and(eq(bills.id, req.params.id), eq(bills.organizationId, orgId)))
-    .returning();
-  if (!bill) { res.status(404).json({ error: "Not found" }); return; }
+  const [existing] = await db.select().from(bills)
+    .where(and(eq(bills.id, req.params.id), eq(bills.organizationId, orgId)));
+  if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+
+  if (existing.status !== "VOID" && existing.status !== "DRAFT") {
+    // Reverse the journal entry if one exists
+    const [je] = await db.select().from(journalEntries)
+      .where(and(
+        eq(journalEntries.organizationId, orgId),
+        eq(journalEntries.sourceType, "BILL"),
+        eq(journalEntries.sourceId, existing.id)
+      )).limit(1);
+
+    if (je) {
+      const jeLines = await db.select().from(journalLines)
+        .where(eq(journalLines.journalEntryId, je.id));
+      await postEntry({
+        organizationId: orgId,
+        date: new Date(),
+        memo: `Void bill ${existing.number}`,
+        sourceType: "ADJUSTMENT",
+        isReversal: true,
+        reversedEntryId: je.id,
+        lines: jeLines.map(l => ({ accountId: l.accountId, debitCents: l.creditCents, creditCents: l.debitCents })),
+      });
+    }
+  }
+
+  const [bill] = await db.update(bills).set({ status: "VOID", balanceCents: 0 })
+    .where(eq(bills.id, req.params.id)).returning();
   res.json(serializeBill(bill));
 });
 

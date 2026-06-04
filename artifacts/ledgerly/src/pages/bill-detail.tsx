@@ -1,6 +1,6 @@
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Ban, Trash2, ArrowLeft } from "lucide-react";
+import { Ban, Trash2, ArrowLeft, CheckCircle } from "lucide-react";
 import { Link } from "wouter";
 import { apiFetch, formatCents, formatDate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,12 @@ export default function BillDetailPage() {
     enabled: !!id,
   });
 
+  const enterMutation = useMutation({
+    mutationFn: () => apiFetch(`/bills/${id}/enter`, { method: "POST" }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["bill", id] }); qc.invalidateQueries({ queryKey: ["bills"] }); toast({ title: "Bill entered — status is now OPEN" }); },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
   const voidMutation = useMutation({
     mutationFn: () => apiFetch(`/bills/${id}/void`, { method: "POST" }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["bill", id] }); qc.invalidateQueries({ queryKey: ["bills"] }); toast({ title: "Bill voided" }); },
@@ -78,6 +84,14 @@ export default function BillDetailPage() {
             <Badge variant={STATUS_VARIANT[bill.status]}>{bill.status}</Badge>
             {isDraft && (
               <>
+                <Button
+                  onClick={() => enterMutation.mutate()}
+                  disabled={enterMutation.isPending}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  {enterMutation.isPending ? "Entering…" : "Enter bill"}
+                </Button>
                 <Button variant="outline" asChild>
                   <Link href={`/bills/${id}/edit`}>Edit</Link>
                 </Button>
