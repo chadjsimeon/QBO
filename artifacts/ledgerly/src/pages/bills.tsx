@@ -4,7 +4,7 @@ import { Link } from "wouter";
 import { apiFetch, formatCents, formatDate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
 
@@ -13,11 +13,6 @@ interface Bill {
   status: string; issueDate: string; dueDate: string;
   subtotalCents: number; taxCents: number; totalCents: number; balanceCents: number;
 }
-
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
-  DRAFT: "secondary", OPEN: "default", PARTIAL: "outline", PAID: "outline",
-  OVERDUE: "destructive", VOID: "secondary",
-};
 
 export default function BillsPage() {
   const { data: bills = [] } = useQuery({
@@ -29,8 +24,8 @@ export default function BillsPage() {
     <>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Bills</h1>
-          <p className="text-sm text-muted-foreground">Money you owe to vendors.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Bills</h1>
+          <p className="text-sm text-muted-foreground mt-1">Money you owe to vendors.</p>
         </div>
         <Link href="/bills/new">
           <Button><Plus className="h-4 w-4 mr-1" /> New bill</Button>
@@ -41,7 +36,7 @@ export default function BillsPage() {
         <EmptyState title="No bills yet" description="Record a bill from a vendor to start tracking payables."
           action={<Link href="/bills/new"><Button><Plus className="h-4 w-4 mr-1" />New bill</Button></Link>} />
       ) : (
-        <Card>
+        <Card className="shadow-md overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -62,9 +57,7 @@ export default function BillsPage() {
                   <TableCell className="text-muted-foreground">{formatDate(bill.issueDate)}</TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(bill.dueDate)}</TableCell>
                   <TableCell>
-                    <Badge variant={STATUS_VARIANT[bill.status] ?? "secondary"} className="text-xs">
-                      {bill.status}
-                    </Badge>
+                    <StatusBadge status={bill.status} />
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{formatCents(bill.totalCents)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatCents(bill.balanceCents)}</TableCell>

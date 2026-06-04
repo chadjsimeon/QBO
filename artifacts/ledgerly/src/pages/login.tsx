@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BookOpen } from "lucide-react";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -29,17 +29,29 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
+    <main
+      className="flex min-h-screen items-center justify-center p-4"
+      style={{ background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 50%, #f0f9ff 100%)" }}
+    >
       <div className="w-full max-w-sm">
-        <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold tracking-tight">Ledgerly</h1>
-          <p className="text-sm text-muted-foreground">Double-entry accounting</p>
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Sign in</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="rounded-md overflow-hidden shadow-lg border border-border">
+          {/* Branded header band */}
+          <div
+            className="px-6 py-6 flex flex-col items-center gap-3"
+            style={{ background: "linear-gradient(135deg, #166534 0%, #15803d 100%)" }}
+          >
+            <div className="h-12 w-12 rounded-xl bg-white/20 flex items-center justify-center">
+              <BookOpen className="h-6 w-6 text-white" />
+            </div>
+            <div className="text-center">
+              <h1 className="text-xl font-bold text-white tracking-wide">Ledgerly</h1>
+              <p className="text-xs text-green-200 mt-0.5">Double-entry accounting</p>
+            </div>
+          </div>
+
+          {/* Form area */}
+          <div className="bg-white px-6 py-6">
+            <h2 className="text-base font-semibold text-foreground mb-4">Sign in to your account</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1">
                 <Label htmlFor="email">Email</Label>
@@ -66,8 +78,9 @@ export default function LoginPage() {
                 {loading ? "Signing in…" : "Sign in"}
               </Button>
             </form>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+
         <p className="mt-4 text-center text-xs text-muted-foreground">
           Demo: owner@acme.test / password123
         </p>

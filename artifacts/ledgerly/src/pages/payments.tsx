@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch, formatCents, formatDate } from "@/lib/api";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
 
@@ -21,14 +21,14 @@ export default function PaymentsPage() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Payments</h1>
-        <p className="text-sm text-muted-foreground">All money received and sent.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Payments</h1>
+        <p className="text-sm text-muted-foreground mt-1">All money received and sent.</p>
       </div>
 
       {payments.length === 0 ? (
         <EmptyState title="No payments yet" description="Payments are recorded when you allocate money against invoices or bills." />
       ) : (
-        <Card>
+        <Card className="shadow-md overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -45,9 +45,7 @@ export default function PaymentsPage() {
                 <TableRow key={p.id}>
                   <TableCell className="text-muted-foreground">{formatDate(p.date)}</TableCell>
                   <TableCell>
-                    <Badge variant={p.direction === "RECEIVED" ? "default" : "secondary"} className="text-xs">
-                      {p.direction}
-                    </Badge>
+                    <StatusBadge status={p.direction} />
                   </TableCell>
                   <TableCell>{p.customerName ?? p.vendorName ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground capitalize text-sm">

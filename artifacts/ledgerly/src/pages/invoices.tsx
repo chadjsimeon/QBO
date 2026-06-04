@@ -4,7 +4,7 @@ import { Link } from "wouter";
 import { apiFetch, formatCents, formatDate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
 
@@ -13,11 +13,6 @@ interface Invoice {
   status: string; issueDate: string; dueDate: string;
   subtotalCents: number; taxCents: number; totalCents: number; balanceCents: number;
 }
-
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
-  DRAFT: "secondary", SENT: "default", PARTIAL: "outline", PAID: "outline",
-  OVERDUE: "destructive", VOID: "secondary",
-};
 
 export default function InvoicesPage() {
   const { data: invoices = [] } = useQuery({
@@ -29,8 +24,8 @@ export default function InvoicesPage() {
     <>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Invoices</h1>
-          <p className="text-sm text-muted-foreground">Money owed to you by customers.</p>
+          <h1 className="text-3xl font-bold tracking-tight">Invoices</h1>
+          <p className="text-sm text-muted-foreground mt-1">Money owed to you by customers.</p>
         </div>
         <Link href="/invoices/new">
           <Button><Plus className="h-4 w-4 mr-1" /> New invoice</Button>
@@ -41,7 +36,7 @@ export default function InvoicesPage() {
         <EmptyState title="No invoices yet" description="Create an invoice and issue it to a customer."
           action={<Link href="/invoices/new"><Button><Plus className="h-4 w-4 mr-1" />New invoice</Button></Link>} />
       ) : (
-        <Card>
+        <Card className="shadow-md overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -56,17 +51,15 @@ export default function InvoicesPage() {
             </TableHeader>
             <TableBody>
               {invoices.map(inv => (
-                <TableRow key={inv.id} className="cursor-pointer hover:bg-muted/30">
+                <TableRow key={inv.id} className="cursor-pointer">
                   <TableCell className="font-medium">
-                    <Link href={`/invoices/${inv.id}`} className="hover:underline">{inv.number}</Link>
+                    <Link href={`/invoices/${inv.id}`} className="hover:underline text-primary">{inv.number}</Link>
                   </TableCell>
                   <TableCell>{inv.customerName ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(inv.issueDate)}</TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(inv.dueDate)}</TableCell>
                   <TableCell>
-                    <Badge variant={STATUS_VARIANT[inv.status] ?? "secondary"} className="text-xs">
-                      {inv.status}
-                    </Badge>
+                    <StatusBadge status={inv.status} />
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{formatCents(inv.totalCents)}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatCents(inv.balanceCents)}</TableCell>
