@@ -10,7 +10,7 @@ import { CreateMenu } from "@/components/create-menu";
 import { useState } from "react";
 
 const NAV = [
-  { label: "Dashboard",          href: "/dashboard",           icon: LayoutDashboard },
+  { label: "Home",               href: "/dashboard",           icon: LayoutDashboard },
   { label: "Invoices",           href: "/invoices",            icon: FileText },
   { label: "Bills",              href: "/bills",               icon: Receipt },
   { label: "Payments",           href: "/payments",            icon: CreditCard },

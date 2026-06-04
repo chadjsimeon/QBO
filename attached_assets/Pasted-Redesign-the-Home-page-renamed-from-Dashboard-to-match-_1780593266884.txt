@@ -1,0 +1,84 @@
+Redesign the Home page (renamed from Dashboard) to match this modern, module-based design:
+
+LAYOUT & STRUCTURE:
+- Personalized greeting at top (e.g., "Good afternoon, [Company Name]!")
+- Search bar with descriptive placeholder
+- Module navigation tabs below greeting: Accounting, Expenses & Pay Bills, Sales & Get Paid, Customer Hub, Team, Tax, Marketing
+- Main content area with clean white background
+
+SECTIONS TO INCLUDE:
+
+1. Business Feed
+   - Title: "Business Feed"
+   - Empty state: "Nothing new right now. Check back soon!"
+   - "View all" link in top right
+
+2. Create actions
+   - Title: "Create actions"
+   - Quick action buttons: Create invoice, Record expense, Add bank deposit, Create cheque
+   - "Show all" link to access the full Create menu
+
+3. Business at a glance (ACTIVE WIDGETS):
+
+   a) PROFIT & LOSS Card (Left)
+      - Title: "PROFIT & LOSS"
+      - Time period selector: "Last month"
+      - Main amount: Net profit figure
+      - Percentage: 100%
+      - Growth indicator: "Up 368% from prior month"
+      - Breakdown: Income and Expenses bars
+      - Link: "Analyze my profit & loss"
+
+   b) EXPENSES Card (Center-Left)
+      - Title: "EXPENSES"
+      - Time period selector: "Last 30 days"
+      - Main amount: Total spending figure
+      - Change indicator: "Down 6% from prior 30 days"
+      - Pie chart showing expense breakdown by category
+      - Link: "View all spending"
+
+   c) SMART SUGGESTIONS Section (Center-Right)
+      - Title: "Smart suggestions"
+      - Quick action buttons: Sales, Accounts receivable
+      - Help text: "Why am I seeing these suggestions?"
+
+   d) BANK ACCOUNTS Card (Right)
+      - Title: "BANK ACCOUNTS"
+      - Timestamp: "As of today"
+      - Total bank balance
+      - List of linked bank accounts with:
+        * Account name
+        * Balance
+        * Last updated date
+        * Status indicator (Reviewed/Pending)
+
+4. CASH FLOW Section (Full Width Bottom)
+   - Title: "CASH FLOW"
+   - Subtitle: "Track how your money is doing"
+   - Line chart showing cash flow over 12 months (Jan-Dec)
+   - Link: "Link your bank to see cash flow"
+
+DESIGN REQUIREMENTS:
+- Keep existing left sidebar navigation
+- Maintain top search/company name area
+- Use pill-shaped buttons for quick actions
+- Use circular icons with company colors for module tabs
+- Card-based layout for widgets
+- Grid: 2 columns for top widgets (Profit & Loss, Expenses), Smart suggestions and Bank Accounts on right
+- Cash Flow takes full width at bottom
+- Clean, modern aesthetic with good whitespace
+- Responsive layout
+
+DATA INTEGRATION:
+- Connect widgets to actual financial data from your database
+- Profit & Loss: Pull from income and expense accounts
+- Expenses: Pull from expense transactions, group by category
+- Bank Accounts: Pull from linked bank accounts
+- Cash Flow: Calculate monthly balances over time
+
+BUILD AS:
+- React component with proper structure
+- Use Tailwind CSS for styling
+- Integrate with existing data layer/API
+- Make it compatible with existing sidebar/header
+- Charts: Use Recharts or similar for visualizations

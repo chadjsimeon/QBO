@@ -105,6 +105,7 @@ export function CreateMenu() {
         size="sm"
         onClick={() => setOpen(v => !v)}
         className="gap-1.5 font-semibold shadow-sm"
+        data-create-menu
       >
         <Plus className="h-4 w-4" />
         New

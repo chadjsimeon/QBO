@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, invoices, bills, customers, vendors, journalEntries, accounts } from "@workspace/db";
-import { eq, inArray, and, or, ilike, sql } from "drizzle-orm";
+import { db, invoices, bills, customers, vendors, journalEntries, journalLines, accounts } from "@workspace/db";
+import { eq, inArray, and, or, ilike, sql, gte, desc } from "drizzle-orm";
 import { requireAuth } from "../lib/session";
 import { getNetDebitByAccount } from "../lib/ledger";
 
@@ -47,6 +47,133 @@ router.get("/dashboard/summary", async (req, res) => {
     apOpenCents: Number(apResult[0]?.total ?? 0),
     cashCents,
     recentEntries: recentEntries.map(e => ({
+      id: e.id,
+      date: e.date.toISOString(),
+      memo: e.memo,
+      sourceType: e.sourceType,
+    })),
+  });
+});
+
+router.get("/dashboard/home", async (req, res) => {
+  const orgId = req.session.organizationId!;
+  const now = new Date();
+
+  // Date ranges
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+  const priorMonthStart = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+  const priorMonthEnd = new Date(now.getFullYear(), now.getMonth() - 1, 0, 23, 59, 59, 999);
+  const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+
+  const [accts, lastMonthNet, priorMonthNet, allTimeNet, cashFlowRows, recentFeed] = await Promise.all([
+    db.select().from(accounts).where(eq(accounts.organizationId, orgId)),
+    getNetDebitByAccount(orgId, { gte: lastMonthStart, lte: lastMonthEnd }),
+    getNetDebitByAccount(orgId, { gte: priorMonthStart, lte: priorMonthEnd }),
+    getNetDebitByAccount(orgId),
+    // Monthly cash flow: debit = cash in, credit = cash out, for cash accounts
+    db.select({
+      month: sql<string>`TO_CHAR(DATE_TRUNC('month', ${journalEntries.date}), 'Mon')`.as("month"),
+      monthNum: sql<string>`TO_CHAR(DATE_TRUNC('month', ${journalEntries.date}), 'YYYY-MM')`.as("month_num"),
+      debitCents: sql<number>`SUM(${journalLines.debitCents})`.as("debit_cents"),
+      creditCents: sql<number>`SUM(${journalLines.creditCents})`.as("credit_cents"),
+    })
+      .from(journalLines)
+      .innerJoin(journalEntries, eq(journalLines.journalEntryId, journalEntries.id))
+      .innerJoin(accounts, eq(journalLines.accountId, accounts.id))
+      .where(and(
+        eq(journalEntries.organizationId, orgId),
+        eq(accounts.systemRole, "CASH"),
+        gte(journalEntries.date, twelveMonthsAgo),
+      ))
+      .groupBy(sql`DATE_TRUNC('month', ${journalEntries.date})`)
+      .orderBy(sql`DATE_TRUNC('month', ${journalEntries.date})`),
+    db.select().from(journalEntries)
+      .where(eq(journalEntries.organizationId, orgId))
+      .orderBy(desc(journalEntries.createdAt))
+      .limit(6),
+  ]);
+
+  // P&L: income accounts negate net debit (credit balance), expense accounts use net debit
+  const incomeAccts = accts.filter(a => a.type === "INCOME");
+  const expenseAccts = accts.filter(a => a.type === "EXPENSE" && a.subtype !== "header");
+  const cashAccts = accts.filter(a => a.systemRole === "CASH");
+
+  function incomeTotal(net: Map<string, number>) {
+    return incomeAccts.reduce((s, a) => s - (net.get(a.id) ?? 0), 0);
+  }
+  function expenseTotal(net: Map<string, number>) {
+    return expenseAccts.reduce((s, a) => s + (net.get(a.id) ?? 0), 0);
+  }
+
+  const lastIncome = incomeTotal(lastMonthNet);
+  const lastExpenses = expenseTotal(lastMonthNet);
+  const lastNet = lastIncome - lastExpenses;
+  const priorNet = incomeTotal(priorMonthNet) - expenseTotal(priorMonthNet);
+  const changePercent = priorNet !== 0 ? Math.round(((lastNet - priorNet) / Math.abs(priorNet)) * 100) : 0;
+
+  const priorExpenses = expenseTotal(priorMonthNet);
+  const expenseChangePercent = priorExpenses !== 0 ? Math.round(((lastExpenses - priorExpenses) / Math.abs(priorExpenses)) * 100) : 0;
+
+  // Expense breakdown by top-level account
+  const expenseByCategory = expenseAccts
+    .map(a => ({ name: a.name, amountCents: Math.max(0, lastMonthNet.get(a.id) ?? 0) }))
+    .filter(e => e.amountCents > 0)
+    .sort((a, b) => b.amountCents - a.amountCents)
+    .slice(0, 6);
+
+  // Bank accounts
+  const bankAccounts = cashAccts.map(a => ({
+    id: a.id,
+    name: a.name,
+    code: a.code,
+    balanceCents: allTimeNet.get(a.id) ?? 0,
+  }));
+
+  // AR / AP
+  const [arResult, apResult] = await Promise.all([
+    db.select({ total: sql<number>`SUM(balance_cents)`.as("total") })
+      .from(invoices)
+      .where(and(eq(invoices.organizationId, orgId), inArray(invoices.status, ["SENT", "PARTIAL", "OVERDUE"] as const))),
+    db.select({ total: sql<number>`SUM(balance_cents)`.as("total") })
+      .from(bills)
+      .where(and(eq(bills.organizationId, orgId), inArray(bills.status, ["OPEN", "PARTIAL", "OVERDUE"] as const))),
+  ]);
+
+  // Fill in any missing months in cash flow with zeroes
+  const cashFlowMap = new Map(cashFlowRows.map(r => [r.monthNum, r]));
+  const cashFlowFull: Array<{ month: string; inCents: number; outCents: number }> = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const row = cashFlowMap.get(key);
+    cashFlowFull.push({
+      month: d.toLocaleString("en-US", { month: "short" }),
+      inCents: Number(row?.debitCents ?? 0),
+      outCents: Number(row?.creditCents ?? 0),
+    });
+  }
+
+  res.json({
+    profitLoss: {
+      incomeCents: lastIncome,
+      expensesCents: lastExpenses,
+      netProfitCents: lastNet,
+      priorNetProfitCents: priorNet,
+      changePercent,
+    },
+    expenses: {
+      totalCents: lastExpenses,
+      priorTotalCents: priorExpenses,
+      changePercent: expenseChangePercent,
+      byCategory: expenseByCategory,
+    },
+    bankAccounts,
+    cashFlow: cashFlowFull,
+    arOpenCents: Number(arResult[0]?.total ?? 0),
+    apOpenCents: Number(apResult[0]?.total ?? 0),
+    recentFeed: recentFeed.map(e => ({
       id: e.id,
       date: e.date.toISOString(),
       memo: e.memo,
