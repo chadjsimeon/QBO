@@ -1,5 +1,6 @@
 import { requireOrg } from "@/lib/tenant";
 import { Sidebar } from "@/components/sidebar";
+import { Topbar } from "@/components/topbar";
 import { signOut } from "@/lib/auth";
 
 export default async function AppLayout({
@@ -17,9 +18,16 @@ export default async function AppLayout({
   return (
     <div className="flex min-h-screen">
       <Sidebar organizationName={ctx.organizationName} logout={logout} />
-      <main className="flex-1 overflow-x-hidden bg-muted/20">
-        <div className="mx-auto max-w-6xl px-6 py-8">{children}</div>
-      </main>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Topbar
+          organizationName={ctx.organizationName}
+          userEmail={ctx.userEmail}
+          logout={logout}
+        />
+        <main className="flex-1 overflow-x-hidden bg-muted/20">
+          <div className="mx-auto max-w-6xl px-6 py-8">{children}</div>
+        </main>
+      </div>
     </div>
   );
 }

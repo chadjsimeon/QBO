@@ -7,6 +7,7 @@ import {
   FileText,
   Receipt,
   CreditCard,
+  Landmark,
   Users,
   Building2,
   BookOpen,
@@ -19,6 +20,7 @@ import { Button } from "@/components/ui/button";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/banking", label: "Banking", icon: Landmark },
   { href: "/invoices", label: "Invoices", icon: FileText },
   { href: "/bills", label: "Bills", icon: Receipt },
   { href: "/payments", label: "Payments", icon: CreditCard },

@@ -1,26 +1,36 @@
 import Link from "next/link";
-import { Wallet, TrendingUp, TrendingDown, FileText, Receipt } from "lucide-react";
+import { Wallet, FileText, Receipt } from "lucide-react";
 import { prisma, requireOrg } from "@/lib/tenant";
-import { profitAndLoss, netDebitByAccount } from "@/lib/reports";
+import { profitAndLoss } from "@/lib/reports";
 import { resolvePeriod } from "@/lib/report-periods";
+import { kpiForRanges, cashFlowSeries } from "@/lib/dashboard";
+import { bookBalanceCents, reviewCounts } from "@/lib/banking";
 import { formatCents } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
 import { OPEN_INVOICE_STATUSES, OPEN_BILL_STATUSES } from "@/lib/status";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ExpenseDonut, type DonutSlice } from "@/components/expense-donut";
+import { QuickActions } from "@/components/dashboard/quick-actions";
+import { KpiTile } from "@/components/dashboard/kpi-tile";
+import { PlBars } from "@/components/dashboard/pl-bars";
+import { CashFlowChart } from "@/components/dashboard/cash-flow-chart";
+import { BankAccountsWidget, type BankWidgetItem } from "@/components/dashboard/bank-accounts-widget";
 
 export default async function DashboardPage() {
   const ctx = await requireOrg();
   const orgId = ctx.organizationId;
   const today = new Date();
-  const period = resolvePeriod("THIS_YEAR_TO_DATE", today);
+  const ytd = resolvePeriod("THIS_YEAR_TO_DATE", today);
 
-  const [pl, netToDate, cashAccounts, arAgg, apAgg, recentEntries] = await Promise.all([
-    profitAndLoss(orgId, { start: period.start, end: period.end }),
-    netDebitByAccount(orgId, { end: today }),
-    prisma.account.findMany({
-      where: { organizationId: orgId, type: "ASSET", subtype: "Bank" },
+  const [kpis, cashFlow, pl, bankAccounts, arAgg, apAgg, recentEntries] = await Promise.all([
+    kpiForRanges(orgId, today),
+    cashFlowSeries(orgId, 6, today),
+    profitAndLoss(orgId, { start: ytd.start, end: ytd.end }),
+    prisma.bankAccount.findMany({
+      where: { organizationId: orgId },
+      include: { account: true },
+      orderBy: { createdAt: "asc" },
     }),
     prisma.invoice.aggregate({
       where: { organizationId: orgId, status: { in: OPEN_INVOICE_STATUSES } },
@@ -35,18 +45,25 @@ export default async function DashboardPage() {
     prisma.journalEntry.findMany({
       where: { organizationId: orgId },
       orderBy: { createdAt: "desc" },
-      take: 8,
+      take: 6,
       include: { lines: true },
     }),
   ]);
 
-  // Cash = net debit across bank accounts (assets are debit-normal).
-  const cashCents = cashAccounts.reduce(
-    (sum, a) => sum + (netToDate.get(a.id) ?? 0),
-    0
+  // Bank widget data + cash on hand (sum of book balances).
+  const bankItems: BankWidgetItem[] = await Promise.all(
+    bankAccounts.map(async (b) => ({
+      id: b.id,
+      institutionName: b.institutionName,
+      accountMask: b.accountMask,
+      accountName: b.account.name,
+      bankBalanceCents: b.bankBalanceCents,
+      bookBalanceCents: await bookBalanceCents(orgId, b.accountId),
+      forReview: (await reviewCounts(orgId, b.id)).FOR_REVIEW,
+    }))
   );
+  const cashCents = bankItems.reduce((s, b) => s + b.bookBalanceCents, 0);
 
-  // Expense breakdown: top-level expense categories with activity.
   const donut: DonutSlice[] = pl.expenses.rows
     .filter((r) => r.depth === 0 && r.amountCents > 0)
     .map((r) => ({ name: r.account.name, valueCents: r.amountCents }))
@@ -57,25 +74,47 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <PageHeader
-        title="Dashboard"
-        description={`${ctx.organizationName} · year to date`}
-      />
+      <PageHeader title="Dashboard" description={ctx.organizationName} />
 
+      <QuickActions />
+
+      <h2 className="mb-3 text-sm font-semibold text-muted-foreground">Business at a glance</h2>
       <div className="grid grid-cols-4 gap-4">
-        <Stat label="Cash on hand" value={formatCents(cashCents)} icon={Wallet} />
-        <Stat label="Income (YTD)" value={formatCents(pl.income.totalCents)} icon={TrendingUp} />
-        <Stat label="Expenses (YTD)" value={formatCents(pl.expenses.totalCents)} icon={TrendingDown} />
-        <Stat
-          label="Net income (YTD)"
-          value={formatCents(pl.netIncomeCents)}
-          icon={TrendingUp}
-          accent={pl.netIncomeCents >= 0 ? "text-green-700" : "text-destructive"}
-        />
+        <Card>
+          <CardContent className="pt-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">Cash on hand</span>
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div className="mt-1 text-2xl font-bold tabular-nums">{formatCents(cashCents)}</div>
+            <div className="mt-1 text-xs text-muted-foreground">Across {bankItems.length} account{bankItems.length === 1 ? "" : "s"}</div>
+          </CardContent>
+        </Card>
+        <KpiTile label="Income" metric="income" data={kpis} goodWhenUp />
+        <KpiTile label="Expenses" metric="expenses" data={kpis} goodWhenUp={false} />
+        <KpiTile label="Net profit" metric="net" data={kpis} goodWhenUp />
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-4">
+        <PlBars
+          incomeCents={pl.income.totalCents}
+          expensesCents={pl.expenses.totalCents}
+          periodLabel={ytd.label}
+        />
         <Card className="col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base">Cash flow</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CashFlowChart data={cashFlow} />
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-4 grid grid-cols-3 gap-4">
+        <BankAccountsWidget items={bankItems} />
+
+        <Card>
           <CardHeader>
             <CardTitle className="text-base">Expenses by category (YTD)</CardTitle>
           </CardHeader>
@@ -142,29 +181,5 @@ export default async function DashboardPage() {
         </Card>
       </div>
     </>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  icon: Icon,
-  accent,
-}: {
-  label: string;
-  value: string;
-  icon: React.ComponentType<{ className?: string }>;
-  accent?: string;
-}) {
-  return (
-    <Card>
-      <CardContent className="pt-6">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">{label}</span>
-          <Icon className="h-4 w-4 text-muted-foreground" />
-        </div>
-        <div className={`mt-1 text-2xl font-bold tabular-nums ${accent ?? ""}`}>{value}</div>
-      </CardContent>
-    </Card>
   );
 }

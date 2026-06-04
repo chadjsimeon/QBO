@@ -237,6 +237,59 @@ export async function postPaymentSent(
 }
 
 /**
+ * Categorize/add a bank-feed transaction:
+ *   money in  (amountCents > 0): Debit bank GL account | Credit each split account
+ *   money out (amountCents < 0): Debit each split account | Credit bank GL account
+ *
+ * A single-category categorization is just a one-element split. Matching an
+ * existing entry does NOT call this — it only links the bank txn to the prior JE.
+ */
+export async function postBankTransaction(
+  tx: Tx,
+  params: {
+    organizationId: string;
+    bankTransactionId: string;
+    date: Date;
+    bankGlAccountId: string;
+    amountCents: number; // signed
+    splits: { accountId: string; amountCents: number }[]; // positive magnitudes
+    memo?: string;
+  }
+) {
+  const magnitude = Math.abs(params.amountCents);
+  const splitTotal = sumCents(params.splits.map((s) => s.amountCents));
+  if (params.splits.length === 0) {
+    throw new Error("A bank categorization needs at least one split line.");
+  }
+  if (splitTotal !== magnitude) {
+    throw new Error(
+      `Split total (${splitTotal}) must equal the transaction amount (${magnitude}).`
+    );
+  }
+  const moneyIn = params.amountCents > 0;
+  const lines: PostLine[] = [];
+  if (moneyIn) {
+    lines.push({ accountId: params.bankGlAccountId, debitCents: magnitude, creditCents: 0 });
+    for (const s of params.splits) {
+      lines.push({ accountId: s.accountId, debitCents: 0, creditCents: s.amountCents });
+    }
+  } else {
+    for (const s of params.splits) {
+      lines.push({ accountId: s.accountId, debitCents: s.amountCents, creditCents: 0 });
+    }
+    lines.push({ accountId: params.bankGlAccountId, debitCents: 0, creditCents: magnitude });
+  }
+  return postEntry(tx, {
+    organizationId: params.organizationId,
+    date: params.date,
+    memo: params.memo ?? "Bank transaction",
+    sourceType: "BANK",
+    sourceId: params.bankTransactionId,
+    lines,
+  });
+}
+
+/**
  * Reverse a prior entry: clone its lines with debit/credit flipped, tagged
  * isReversal. Never edit or delete the original — this is how corrections work.
  */

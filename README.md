@@ -27,7 +27,10 @@ npm run db:seed
 # 4. (Optional) post demo invoices/bills/a payment so reports have data
 npx tsx prisma/demo-data.ts
 
-# 5. Run the app
+# 5. (Optional) connect a demo bank account + import sample transactions
+npx tsx prisma/demo-bank.ts
+
+# 6. Run the app
 npm run dev   # http://localhost:3000  (we used 3100 during the build)
 ```
 
@@ -42,10 +45,11 @@ npm run dev   # http://localhost:3000  (we used 3100 during the build)
 npm test
 ```
 
-17 tests covering the spine:
+24 tests covering the spine:
 - **Ledger invariants** — `sum(debits) == sum(credits)` after every posting op; line validation; reversals flip debits/credits.
 - **Tenant isolation** — org-scoped queries never return another tenant's rows; `assertOrg` rejects cross-tenant records.
 - **Reports** — P&L totals, Non-Zero suppression, Balance Sheet balances (`Assets == Liabilities + Equity`), A/R aging buckets.
+- **Banking** — bank transactions post balanced entries (deposit/withdrawal/split); categorize→undo reverses; book balance matches the ledger; reconciliation difference reaches zero.
 
 ## Architecture
 
@@ -53,11 +57,12 @@ npm test
 |---|---|
 | Ledger engine (the spine) | `src/lib/ledger.ts` |
 | Reporting engine | `src/lib/reports.ts` |
+| Dashboard / banking helpers | `src/lib/dashboard.ts`, `src/lib/banking.ts` |
 | Tenant scoping | `src/lib/tenant.ts` (session) + `src/lib/scope.ts` (pure) |
 | Money math | `src/lib/money.ts` |
 | Document line calc | `src/lib/documents.ts` |
 | Prisma schema | `prisma/schema.prisma` |
-| Seed / demo data | `prisma/seed.ts`, `prisma/demo-data.ts` |
+| Seed / demo data | `prisma/seed.ts`, `prisma/demo-data.ts`, `prisma/demo-bank.ts` |
 
 ### Ledger rules (enforced in `lib/ledger.ts`)
 - Every entry has ≥ 2 lines and balances; each line has exactly one of debit/credit.
@@ -74,11 +79,14 @@ npm test
 5. ✅ Bills — mirror of invoices on the payable side
 6. ✅ Payments — receive/pay, allocate to docs, post, update balances; delete reverses
 7. ✅ Reports — P&L (+ Non-Zero), Balance Sheet, A/R & A/P aging, nested trees, accrual basis
-8. ✅ Dashboard — cash, P&L snapshot, expenses donut, outstanding AR/AP, recent activity
+8. ✅ Dashboard — top bar + global search, quick actions, "Business at a glance" KPI tiles (period selector + trend), P&L bars, cash-flow chart, bank-accounts widget, expenses donut, recent activity
 9. ✅ Management reports — saved templates + printable bundle (cover + TOC + sections)
+10. ✅ Banking — connect accounts, import CSV / sample, **For review / Categorized / Excluded** workflow (match to existing entry, categorize with splits + payee, exclude, undo), and statement reconciliation. Every categorized/added transaction posts a balanced journal entry; matches link to an existing one.
+11. ✅ Global search — customers, vendors, invoices, bills.
 
 ## Deferred / next
 
+- **Plaid bank feeds** (banking currently uses CSV import + a sample loader).
 - **Puppeteer PDF route** for management reports (currently browser Print-to-PDF, which is already styled for `@media print`).
 - Statement of Cash Flows (indirect), cash/accrual toggle (MVP2).
-- PDF invoice export, email send, search/filter.
+- PDF invoice export, email send.

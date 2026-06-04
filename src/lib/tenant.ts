@@ -15,6 +15,7 @@ import { assertOrg } from "@/lib/scope";
 
 export interface TenantContext {
   userId: string;
+  userEmail: string;
   organizationId: string;
   organizationName: string;
   role: string;
@@ -25,6 +26,7 @@ export async function getOrg(): Promise<TenantContext | null> {
   if (!session?.user?.organizationId) return null;
   return {
     userId: session.user.id,
+    userEmail: session.user.email,
     organizationId: session.user.organizationId,
     organizationName: session.user.organizationName,
     role: session.user.role,

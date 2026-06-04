@@ -79,6 +79,7 @@ enum JournalSourceType {
   PAYMENT
   MANUAL
   ADJUSTMENT
+  BANK
 }
 
 enum PeriodPreset {
@@ -103,6 +104,22 @@ enum ManagementReportType {
   AP_AGING
 }
 
+enum BankTxnStatus {
+  FOR_REVIEW
+  CATEGORIZED
+  EXCLUDED
+}
+
+enum BankTxnMatchType {
+  MATCHED
+  ADDED
+}
+
+enum ReconciliationStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
 // ── Tenancy & identity ──────────────────────────────────────────────────────
 
 model Organization {
@@ -121,6 +138,9 @@ model Organization {
   payments          Payment[]
   journalEntries    JournalEntry[]
   managementReports ManagementReport[]
+  bankAccounts      BankAccount[]
+  bankTransactions  BankTransaction[]
+  reconciliations   Reconciliation[]
 }
 
 model User {
@@ -170,6 +190,8 @@ model Account {
   journalLines     JournalLine[]
   invoiceLineItems InvoiceLineItem[]
   billLineItems    BillLineItem[]
+  bankAccounts     BankAccount[]
+  categorizedBankTxns BankTransaction[] @relation("BankTxnCategory")
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -190,6 +212,7 @@ model Customer {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   invoices     Invoice[]
   payments     Payment[]
+  bankTxns     BankTransaction[] @relation("BankTxnPayeeCustomer")
 
   @@index([organizationId])
 }
@@ -206,6 +229,7 @@ model Vendor {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   bills        Bill[]
   payments     Payment[]
+  bankTxns     BankTransaction[] @relation("BankTxnPayeeVendor")
 
   @@index([organizationId])
 }
@@ -367,6 +391,7 @@ model JournalEntry {
   reversedEntry JournalEntry?  @relation("Reversal", fields: [reversedEntryId], references: [id])
   reversals     JournalEntry[] @relation("Reversal")
   lines         JournalLine[]
+  bankTxns      BankTransaction[]
 
   @@index([organizationId])
   @@index([organizationId, sourceType, sourceId])
@@ -417,4 +442,74 @@ model ManagementReportSection {
   managementReport ManagementReport @relation(fields: [managementReportId], references: [id], onDelete: Cascade)
 
   @@index([managementReportId])
+}
+
+// ── Banking (bank feed, review/match/categorize, reconciliation) ─────────────
+
+model BankAccount {
+  id               String    @id @default(cuid())
+  organizationId   String
+  accountId        String // FK -> Account (the GL cash/bank account; the "book" side)
+  institutionName  String
+  accountMask      String? // last 4
+  bankBalanceCents Int       @default(0) // balance per the imported feed/statement
+  bankBalanceAsOf  DateTime?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+
+  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account         Account           @relation(fields: [accountId], references: [id])
+  transactions    BankTransaction[]
+  reconciliations Reconciliation[]
+
+  @@unique([organizationId, accountId]) // one bank feed per GL account
+  @@index([organizationId])
+}
+
+model BankTransaction {
+  id                   String            @id @default(cuid())
+  organizationId       String
+  bankAccountId        String
+  date                 DateTime
+  descriptionRaw       String
+  amountCents          Int // SIGNED: + = money in (deposit), - = money out
+  status               BankTxnStatus     @default(FOR_REVIEW)
+  matchType            BankTxnMatchType? // set when it leaves "For review"
+  journalEntryId       String? // matched (existing) OR created (added) JE
+  categorizedAccountId String? // single-category convenience (null if split)
+  payeeVendorId        String?
+  payeeCustomerId      String?
+  memo                 String?
+  isCleared            Boolean           @default(false)
+  reconciliationId     String?
+  importedAt           DateTime          @default(now())
+
+  organization       Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bankAccount        BankAccount     @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  journalEntry       JournalEntry?   @relation(fields: [journalEntryId], references: [id])
+  categorizedAccount Account?        @relation("BankTxnCategory", fields: [categorizedAccountId], references: [id])
+  payeeVendor        Vendor?         @relation("BankTxnPayeeVendor", fields: [payeeVendorId], references: [id])
+  payeeCustomer      Customer?       @relation("BankTxnPayeeCustomer", fields: [payeeCustomerId], references: [id])
+  reconciliation     Reconciliation? @relation(fields: [reconciliationId], references: [id])
+
+  @@index([organizationId, bankAccountId, status])
+  @@index([bankAccountId])
+}
+
+model Reconciliation {
+  id                    String               @id @default(cuid())
+  organizationId        String
+  bankAccountId         String
+  statementDate         DateTime
+  statementBalanceCents Int
+  beginningBalanceCents Int                  @default(0) // prior cleared balance
+  status                ReconciliationStatus @default(IN_PROGRESS)
+  reconciledAt          DateTime?
+  createdAt             DateTime             @default(now())
+
+  organization        Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bankAccount         BankAccount       @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  clearedTransactions BankTransaction[]
+
+  @@index([organizationId, bankAccountId])
 }
