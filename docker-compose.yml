@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: qbo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: qbo
+      POSTGRES_PASSWORD: qbo
+      POSTGRES_DB: qbo
+    ports:
+      - "5433:5432"
+    volumes:
+      - qbo-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qbo -d qbo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  qbo-pgdata:

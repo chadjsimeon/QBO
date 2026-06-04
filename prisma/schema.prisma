@@ -1,0 +1,420 @@
+// QuickBooks-style multi-tenant accounting app.
+// Every tenant-owned record carries organizationId. The ledger
+// (JournalEntry/JournalLine) is the append-only source of truth.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+}
+
+enum SystemRole {
+  AR
+  AP
+  CASH
+  SALES_TAX_PAYABLE
+  RETAINED_EARNINGS
+}
+
+enum CashFlowCategory {
+  OPERATING
+  INVESTING
+  FINANCING
+  NONE
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PARTIAL
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum BillStatus {
+  DRAFT
+  OPEN
+  PARTIAL
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum PaymentDirection {
+  RECEIVED
+  SENT
+}
+
+enum PaymentMethod {
+  CASH
+  CHECK
+  CARD
+  BANK_TRANSFER
+  OTHER
+}
+
+enum JournalSourceType {
+  INVOICE
+  BILL
+  PAYMENT
+  MANUAL
+  ADJUSTMENT
+}
+
+enum PeriodPreset {
+  THIS_YEAR
+  THIS_YEAR_TO_DATE
+  THIS_MONTH
+  LAST_MONTH
+  CUSTOM
+}
+
+enum ReportBasis {
+  ACCRUAL
+  CASH
+}
+
+enum ManagementReportType {
+  PROFIT_LOSS
+  PROFIT_LOSS_NONZERO
+  BALANCE_SHEET
+  CASH_FLOW
+  AR_AGING
+  AP_AGING
+}
+
+// ── Tenancy & identity ──────────────────────────────────────────────────────
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  logoUrl   String?
+  createdAt DateTime @default(now())
+
+  memberships       OrgMembership[]
+  accounts          Account[]
+  customers         Customer[]
+  vendors           Vendor[]
+  taxRates          TaxRate[]
+  invoices          Invoice[]
+  bills             Bill[]
+  payments          Payment[]
+  journalEntries    JournalEntry[]
+  managementReports ManagementReport[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String?
+  createdAt    DateTime @default(now())
+
+  memberships OrgMembership[]
+}
+
+model OrgMembership {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  role           Role     @default(MEMBER)
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+}
+
+// ── Chart of accounts ───────────────────────────────────────────────────────
+
+model Account {
+  id               String           @id @default(cuid())
+  organizationId   String
+  code             String
+  name             String
+  type             AccountType
+  subtype          String
+  isActive         Boolean          @default(true)
+  parentId         String?
+  systemRole       SystemRole?
+  cashFlowCategory CashFlowCategory @default(NONE)
+  sortOrder        Int              @default(0)
+  createdAt        DateTime         @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent       Account?     @relation("AccountTree", fields: [parentId], references: [id])
+  children     Account[]    @relation("AccountTree")
+
+  journalLines     JournalLine[]
+  invoiceLineItems InvoiceLineItem[]
+  billLineItems    BillLineItem[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@index([organizationId, systemRole])
+}
+
+// ── Contacts ────────────────────────────────────────────────────────────────
+
+model Customer {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  email          String?
+  phone          String?
+  billingAddress String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoices     Invoice[]
+  payments     Payment[]
+
+  @@index([organizationId])
+}
+
+model Vendor {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  email          String?
+  phone          String?
+  address        String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bills        Bill[]
+  payments     Payment[]
+
+  @@index([organizationId])
+}
+
+model TaxRate {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  rateBps        Int // basis points: 8.25% = 825
+  createdAt      DateTime @default(now())
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoiceLines InvoiceLineItem[]
+  billLines    BillLineItem[]
+
+  @@index([organizationId])
+}
+
+// ── Invoices (receivable) ───────────────────────────────────────────────────
+
+model Invoice {
+  id             String        @id @default(cuid())
+  organizationId String
+  customerId     String
+  number         String
+  status         InvoiceStatus @default(DRAFT)
+  issueDate      DateTime
+  dueDate        DateTime
+  subtotalCents  Int           @default(0)
+  taxCents       Int           @default(0)
+  totalCents     Int           @default(0)
+  balanceCents   Int           @default(0)
+  createdAt      DateTime      @default(now())
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer          @relation(fields: [customerId], references: [id])
+  lineItems    InvoiceLineItem[]
+  allocations  PaymentAllocation[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId])
+  @@index([organizationId, customerId])
+}
+
+model InvoiceLineItem {
+  id             String  @id @default(cuid())
+  invoiceId      String
+  description    String
+  quantity       Int     @default(1)
+  unitPriceCents Int     @default(0)
+  taxRateId      String?
+  accountId      String
+  amountCents    Int     @default(0)
+  sortOrder      Int     @default(0)
+
+  invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  taxRate TaxRate? @relation(fields: [taxRateId], references: [id])
+  account Account  @relation(fields: [accountId], references: [id])
+
+  @@index([invoiceId])
+}
+
+// ── Bills (payable) ─────────────────────────────────────────────────────────
+
+model Bill {
+  id             String     @id @default(cuid())
+  organizationId String
+  vendorId       String
+  number         String
+  status         BillStatus @default(DRAFT)
+  issueDate      DateTime
+  dueDate        DateTime
+  subtotalCents  Int        @default(0)
+  taxCents       Int        @default(0)
+  totalCents     Int        @default(0)
+  balanceCents   Int        @default(0)
+  createdAt      DateTime   @default(now())
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vendor       Vendor              @relation(fields: [vendorId], references: [id])
+  lineItems    BillLineItem[]
+  allocations  PaymentAllocation[]
+
+  @@unique([organizationId, number])
+  @@index([organizationId])
+  @@index([organizationId, vendorId])
+}
+
+model BillLineItem {
+  id             String  @id @default(cuid())
+  billId         String
+  description    String
+  quantity       Int     @default(1)
+  unitPriceCents Int     @default(0)
+  taxRateId      String?
+  accountId      String
+  amountCents    Int     @default(0)
+  sortOrder      Int     @default(0)
+
+  bill    Bill     @relation(fields: [billId], references: [id], onDelete: Cascade)
+  taxRate TaxRate? @relation(fields: [taxRateId], references: [id])
+  account Account  @relation(fields: [accountId], references: [id])
+
+  @@index([billId])
+}
+
+// ── Payments ────────────────────────────────────────────────────────────────
+
+model Payment {
+  id             String           @id @default(cuid())
+  organizationId String
+  direction      PaymentDirection
+  customerId     String?
+  vendorId       String?
+  amountCents    Int
+  date           DateTime
+  method         PaymentMethod    @default(BANK_TRANSFER)
+  memo           String?
+  createdAt      DateTime         @default(now())
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer?           @relation(fields: [customerId], references: [id])
+  vendor       Vendor?             @relation(fields: [vendorId], references: [id])
+  allocations  PaymentAllocation[]
+
+  @@index([organizationId])
+}
+
+model PaymentAllocation {
+  id          String  @id @default(cuid())
+  paymentId   String
+  invoiceId   String?
+  billId      String?
+  amountCents Int
+
+  payment Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  invoice Invoice? @relation(fields: [invoiceId], references: [id])
+  bill    Bill?    @relation(fields: [billId], references: [id])
+
+  @@index([paymentId])
+  @@index([invoiceId])
+  @@index([billId])
+}
+
+// ── Ledger (append-only source of truth) ────────────────────────────────────
+
+model JournalEntry {
+  id              String            @id @default(cuid())
+  organizationId  String
+  date            DateTime
+  memo            String?
+  sourceType      JournalSourceType
+  sourceId        String?
+  isReversal      Boolean           @default(false)
+  reversedEntryId String?
+  createdAt       DateTime          @default(now())
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  reversedEntry JournalEntry?  @relation("Reversal", fields: [reversedEntryId], references: [id])
+  reversals     JournalEntry[] @relation("Reversal")
+  lines         JournalLine[]
+
+  @@index([organizationId])
+  @@index([organizationId, sourceType, sourceId])
+  @@index([organizationId, date])
+}
+
+model JournalLine {
+  id             String @id @default(cuid())
+  journalEntryId String
+  accountId      String
+  debitCents     Int    @default(0)
+  creditCents    Int    @default(0)
+
+  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account      Account      @relation(fields: [accountId], references: [id])
+
+  @@index([journalEntryId])
+  @@index([accountId])
+}
+
+// ── Management reports (PDF bundles) ─────────────────────────────────────────
+
+model ManagementReport {
+  id                  String       @id @default(cuid())
+  organizationId      String
+  name                String
+  periodPreset        PeriodPreset @default(THIS_YEAR_TO_DATE)
+  periodStart         DateTime?
+  periodEnd           DateTime?
+  basis               ReportBasis  @default(ACCRUAL)
+  preparedByName      String?
+  confidentialityNote String?
+  logoUrl             String?
+  lastModified        DateTime     @default(now()) @updatedAt
+
+  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sections     ManagementReportSection[]
+
+  @@index([organizationId])
+}
+
+model ManagementReportSection {
+  id                 String               @id @default(cuid())
+  managementReportId String
+  reportType         ManagementReportType
+  sortOrder          Int                  @default(0)
+
+  managementReport ManagementReport @relation(fields: [managementReportId], references: [id], onDelete: Cascade)
+
+  @@index([managementReportId])
+}
