@@ -66,19 +66,19 @@ export async function getNetDebitByAccount(
   dateFilter: { gte?: Date; lte?: Date } = {}
 ): Promise<Map<string, number>> {
   const { gte, lte } = dateFilter;
-  let whereClause = `je.organization_id = '${organizationId}'`;
-  if (gte) whereClause += ` AND je.date >= '${gte.toISOString()}'`;
-  if (lte) whereClause += ` AND je.date <= '${lte.toISOString()}'`;
 
-  const rows = await db.execute<{ account_id: string; net: string }>(
-    sql.raw(`
-      SELECT jl.account_id, SUM(jl.debit_cents) - SUM(jl.credit_cents) AS net
-      FROM journal_lines jl
-      JOIN journal_entries je ON je.id = jl.journal_entry_id
-      WHERE ${whereClause}
-      GROUP BY jl.account_id
-    `)
-  );
+  // Build parameterized query to avoid SQL injection
+  let query = sql`
+    SELECT jl.account_id, SUM(jl.debit_cents) - SUM(jl.credit_cents) AS net
+    FROM journal_lines jl
+    JOIN journal_entries je ON je.id = jl.journal_entry_id
+    WHERE je.organization_id = ${organizationId}
+  `;
+  if (gte) query = sql`${query} AND je.date >= ${gte}`;
+  if (lte) query = sql`${query} AND je.date <= ${lte}`;
+  query = sql`${query} GROUP BY jl.account_id`;
+
+  const rows = await db.execute<{ account_id: string; net: string }>(query);
 
   const map = new Map<string, number>();
   for (const row of rows.rows) {

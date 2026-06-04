@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, invoices, invoiceLineItems, customers, taxRates, journalEntries, journalLines } from "@workspace/db";
+import { db, invoices, invoiceLineItems, customers, taxRates, journalEntries, journalLines, accounts } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
 import { requireAuth } from "../lib/session";
 import { findSystemAccount, postEntry } from "../lib/ledger";
@@ -148,24 +148,34 @@ router.post("/invoices/:id/issue", async (req, res) => {
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
   if (existing.status !== "DRAFT") { res.status(400).json({ error: "Only DRAFT invoices can be issued" }); return; }
 
-  const lines = await db.select().from(invoiceLineItems)
-    .where(eq(invoiceLineItems.invoiceId, existing.id));
-
-  const arAccount = await findSystemAccount(orgId, "ACCOUNTS_RECEIVABLE");
-  const incomeAccount = await findSystemAccount(orgId, "SALES_INCOME");
+  // Find AR account (systemRole = "AR") and first non-header income account
+  const [arAccount] = await db.select().from(accounts)
+    .where(and(eq(accounts.organizationId, orgId), eq(accounts.systemRole, "AR")));
+  const [incomeAccount] = await db.select().from(accounts)
+    .where(and(
+      eq(accounts.organizationId, orgId),
+      eq(accounts.type, "INCOME"),
+      // @ts-ignore drizzle typing for ne
+      eq(accounts.subtype as any, "revenue")
+    ));
 
   if (arAccount && incomeAccount) {
+    const entryLines: Array<{ accountId: string; debitCents: number; creditCents: number }> = [
+      { accountId: arAccount.id, debitCents: existing.totalCents, creditCents: 0 },
+      { accountId: incomeAccount.id, debitCents: 0, creditCents: existing.subtotalCents },
+    ];
+    if (existing.taxCents > 0) {
+      const [taxAccount] = await db.select().from(accounts)
+        .where(and(eq(accounts.organizationId, orgId), eq(accounts.systemRole, "SALES_TAX_PAYABLE")));
+      entryLines.push({ accountId: (taxAccount ?? incomeAccount).id, debitCents: 0, creditCents: existing.taxCents });
+    }
     await postEntry({
       organizationId: orgId,
       date: existing.issueDate,
       memo: `${existing.number} issued`,
       sourceType: "INVOICE",
       sourceId: existing.id,
-      lines: [
-        { accountId: arAccount.id, debitCents: existing.totalCents, creditCents: 0 },
-        { accountId: incomeAccount.id, debitCents: 0, creditCents: existing.subtotalCents },
-        ...(existing.taxCents > 0 ? [{ accountId: incomeAccount.id, debitCents: 0, creditCents: existing.taxCents }] : []),
-      ],
+      lines: entryLines,
     });
   }
 

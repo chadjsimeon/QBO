@@ -11,13 +11,20 @@ declare module "express-session" {
   }
 }
 
+const isProd = process.env.NODE_ENV === "production";
+
+if (isProd && !process.env.SESSION_SECRET) {
+  throw new Error("SESSION_SECRET environment variable is required in production");
+}
+
 export const sessionMiddleware = session({
-  secret: process.env.SESSION_SECRET || "ledgerly-dev-secret-change-in-prod",
+  secret: process.env.SESSION_SECRET || "ledgerly-dev-secret-do-not-use-in-prod",
   resave: false,
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    secure: false,
+    secure: isProd,
+    sameSite: isProd ? "strict" : "lax",
     maxAge: 7 * 24 * 60 * 60 * 1000,
   },
 });
