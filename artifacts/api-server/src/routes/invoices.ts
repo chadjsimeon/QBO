@@ -141,6 +141,39 @@ router.patch("/invoices/:id", async (req, res) => {
   res.json(serializeInvoice(inv));
 });
 
+router.post("/invoices/:id/issue", async (req, res) => {
+  const orgId = req.session.organizationId!;
+  const [existing] = await db.select().from(invoices)
+    .where(and(eq(invoices.id, req.params.id), eq(invoices.organizationId, orgId)));
+  if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+  if (existing.status !== "DRAFT") { res.status(400).json({ error: "Only DRAFT invoices can be issued" }); return; }
+
+  const lines = await db.select().from(invoiceLineItems)
+    .where(eq(invoiceLineItems.invoiceId, existing.id));
+
+  const arAccount = await findSystemAccount(orgId, "ACCOUNTS_RECEIVABLE");
+  const incomeAccount = await findSystemAccount(orgId, "SALES_INCOME");
+
+  if (arAccount && incomeAccount) {
+    await postEntry({
+      organizationId: orgId,
+      date: existing.issueDate,
+      memo: `${existing.number} issued`,
+      sourceType: "INVOICE",
+      sourceId: existing.id,
+      lines: [
+        { accountId: arAccount.id, debitCents: existing.totalCents, creditCents: 0 },
+        { accountId: incomeAccount.id, debitCents: 0, creditCents: existing.subtotalCents },
+        ...(existing.taxCents > 0 ? [{ accountId: incomeAccount.id, debitCents: 0, creditCents: existing.taxCents }] : []),
+      ],
+    });
+  }
+
+  const [inv] = await db.update(invoices).set({ status: "SENT" })
+    .where(eq(invoices.id, req.params.id)).returning();
+  res.json(serializeInvoice(inv));
+});
+
 router.delete("/invoices/:id", async (req, res) => {
   const orgId = req.session.organizationId!;
   await db.delete(invoices)

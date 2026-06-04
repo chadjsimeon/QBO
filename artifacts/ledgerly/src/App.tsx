@@ -10,10 +10,16 @@ import CustomersPage from "@/pages/customers";
 import VendorsPage from "@/pages/vendors";
 import AccountsPage from "@/pages/accounts";
 import InvoicesPage from "@/pages/invoices";
+import InvoiceDetailPage from "@/pages/invoice-detail";
+import InvoiceFormPage from "@/pages/invoice-form";
 import BillsPage from "@/pages/bills";
+import BillDetailPage from "@/pages/bill-detail";
+import BillFormPage from "@/pages/bill-form";
 import PaymentsPage from "@/pages/payments";
+import PaymentFormPage from "@/pages/payment-form";
 import BankingPage from "@/pages/banking";
 import ReportsPage from "@/pages/reports";
+import ManagementReportsPage from "@/pages/management-reports";
 import SearchPage from "@/pages/search";
 
 const queryClient = new QueryClient({
@@ -64,14 +70,32 @@ function AppRouter() {
       <Route path="/accounts">
         <AuthGuard><AccountsPage /></AuthGuard>
       </Route>
+      <Route path="/invoices/new">
+        <AuthGuard><InvoiceFormPage /></AuthGuard>
+      </Route>
+      <Route path="/invoices/:id/edit">
+        <AuthGuard><InvoiceFormPage /></AuthGuard>
+      </Route>
+      <Route path="/invoices/:id">
+        <AuthGuard><InvoiceDetailPage /></AuthGuard>
+      </Route>
       <Route path="/invoices">
         <AuthGuard><InvoicesPage /></AuthGuard>
       </Route>
-      <Route path="/invoices/:id">
-        <AuthGuard><InvoicesPage /></AuthGuard>
+      <Route path="/bills/new">
+        <AuthGuard><BillFormPage /></AuthGuard>
+      </Route>
+      <Route path="/bills/:id/edit">
+        <AuthGuard><BillFormPage /></AuthGuard>
+      </Route>
+      <Route path="/bills/:id">
+        <AuthGuard><BillDetailPage /></AuthGuard>
       </Route>
       <Route path="/bills">
         <AuthGuard><BillsPage /></AuthGuard>
+      </Route>
+      <Route path="/payments/new">
+        <AuthGuard><PaymentFormPage /></AuthGuard>
       </Route>
       <Route path="/payments">
         <AuthGuard><PaymentsPage /></AuthGuard>
@@ -81,6 +105,9 @@ function AppRouter() {
       </Route>
       <Route path="/reports">
         <AuthGuard><ReportsPage /></AuthGuard>
+      </Route>
+      <Route path="/management-reports">
+        <AuthGuard><ManagementReportsPage /></AuthGuard>
       </Route>
       <Route path="/search">
         <AuthGuard><SearchPage /></AuthGuard>

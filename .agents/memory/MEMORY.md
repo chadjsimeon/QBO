@@ -1,1 +1,2 @@
-- [Ledgerly stack](ledgerly-stack.md) — port layout, proxy config, auth pattern, and seed credentials for this project
+- [Ledgerly stack](ledgerly-stack.md) — port layout, proxy config, auth pattern, and key migration decisions
+- [Ledgerly UI patterns](ledgerly-ui-patterns.md) — native select vs shadcn, component API constraints

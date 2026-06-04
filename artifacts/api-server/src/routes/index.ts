@@ -10,6 +10,7 @@ import paymentsRouter from "./payments";
 import bankingRouter from "./banking";
 import reportsRouter from "./reports";
 import dashboardRouter from "./dashboard";
+import taxRatesRouter from "./tax-rates";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(paymentsRouter);
 router.use(bankingRouter);
 router.use(reportsRouter);
 router.use(dashboardRouter);
+router.use(taxRatesRouter);
 
 export default router;

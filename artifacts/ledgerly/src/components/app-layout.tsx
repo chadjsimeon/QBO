@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard, FileText, Receipt, CreditCard,
-  Users, Building2, BookOpen, Landmark, BarChart3,
+  Users, Building2, BookOpen, Landmark, BarChart3, FileBarChart,
   LogOut, Menu, X, Search,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
@@ -9,15 +9,16 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
 const NAV = [
-  { label: "Dashboard",  href: "/dashboard",  icon: LayoutDashboard },
-  { label: "Invoices",   href: "/invoices",   icon: FileText },
-  { label: "Bills",      href: "/bills",      icon: Receipt },
-  { label: "Payments",   href: "/payments",   icon: CreditCard },
-  { label: "Customers",  href: "/customers",  icon: Users },
-  { label: "Vendors",    href: "/vendors",    icon: Building2 },
-  { label: "Accounts",   href: "/accounts",   icon: BookOpen },
-  { label: "Banking",    href: "/banking",    icon: Landmark },
-  { label: "Reports",    href: "/reports",    icon: BarChart3 },
+  { label: "Dashboard",          href: "/dashboard",           icon: LayoutDashboard },
+  { label: "Invoices",           href: "/invoices",            icon: FileText },
+  { label: "Bills",              href: "/bills",               icon: Receipt },
+  { label: "Payments",           href: "/payments",            icon: CreditCard },
+  { label: "Customers",          href: "/customers",           icon: Users },
+  { label: "Vendors",            href: "/vendors",             icon: Building2 },
+  { label: "Accounts",           href: "/accounts",            icon: BookOpen },
+  { label: "Banking",            href: "/banking",             icon: Landmark },
+  { label: "Reports",            href: "/reports",             icon: BarChart3 },
+  { label: "Mgmt Reports",       href: "/management-reports",  icon: FileBarChart },
 ];
 
 function NavItem({ href, icon: Icon, label, close }: { href: string; icon: React.ElementType; label: string; close?: () => void }) {
