@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
+import { CreateMenu } from "@/components/create-menu";
 import { useState } from "react";
 
 const NAV = [
@@ -125,6 +126,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </a>
           </Link>
           <div className="flex-1" />
+          <CreateMenu />
           {user?.organizationName && (
             <div className="hidden sm:flex items-center gap-2">
               <span className="text-sm text-muted-foreground font-medium">{user.organizationName}</span>
