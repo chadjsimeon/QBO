@@ -1,22 +1,30 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Ledgerly accounting API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: auth
+  - name: customers
+  - name: vendors
+  - name: accounts
+  - name: invoices
+  - name: bills
+  - name: payments
+  - name: banking
+  - name: reports
+  - name: dashboard
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +32,619 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login with credentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Invalid credentials
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Unauthenticated
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Dashboard KPIs and summary
+      responses:
+        "200":
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /customers:
+    get:
+      operationId: listCustomers
+      tags: [customers]
+      summary: List customers
+      responses:
+        "200":
+          description: Customers list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Customer"
+    post:
+      operationId: createCustomer
+      tags: [customers]
+      summary: Create customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+
+  /customers/{id}:
+    get:
+      operationId: getCustomer
+      tags: [customers]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+    patch:
+      operationId: updateCustomer
+      tags: [customers]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CustomerInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+    delete:
+      operationId: deleteCustomer
+      tags: [customers]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204":
+          description: Deleted
+
+  /vendors:
+    get:
+      operationId: listVendors
+      tags: [vendors]
+      summary: List vendors
+      responses:
+        "200":
+          description: Vendors list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Vendor"
+    post:
+      operationId: createVendor
+      tags: [vendors]
+      summary: Create vendor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VendorInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vendor"
+
+  /vendors/{id}:
+    get:
+      operationId: getVendor
+      tags: [vendors]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Vendor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vendor"
+    patch:
+      operationId: updateVendor
+      tags: [vendors]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VendorInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vendor"
+    delete:
+      operationId: deleteVendor
+      tags: [vendors]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204":
+          description: Deleted
+
+  /accounts:
+    get:
+      operationId: listAccounts
+      tags: [accounts]
+      summary: List chart of accounts
+      responses:
+        "200":
+          description: Accounts list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Account"
+
+  /tax-rates:
+    get:
+      operationId: listTaxRates
+      tags: [accounts]
+      summary: List tax rates
+      responses:
+        "200":
+          description: Tax rates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TaxRate"
+
+  /invoices:
+    get:
+      operationId: listInvoices
+      tags: [invoices]
+      summary: List invoices
+      responses:
+        "200":
+          description: Invoices list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invoice"
+    post:
+      operationId: createInvoice
+      tags: [invoices]
+      summary: Create invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+
+  /invoices/{id}:
+    get:
+      operationId: getInvoice
+      tags: [invoices]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Invoice with line items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceDetail"
+    patch:
+      operationId: updateInvoice
+      tags: [invoices]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+    delete:
+      operationId: deleteInvoice
+      tags: [invoices]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204":
+          description: Deleted
+
+  /invoices/{id}/void:
+    post:
+      operationId: voidInvoice
+      tags: [invoices]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Voided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+
+  /bills:
+    get:
+      operationId: listBills
+      tags: [bills]
+      summary: List bills
+      responses:
+        "200":
+          description: Bills list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bill"
+    post:
+      operationId: createBill
+      tags: [bills]
+      summary: Create bill
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bill"
+
+  /bills/{id}:
+    get:
+      operationId: getBill
+      tags: [bills]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Bill with line items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillDetail"
+    patch:
+      operationId: updateBill
+      tags: [bills]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DocumentInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bill"
+    delete:
+      operationId: deleteBill
+      tags: [bills]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204":
+          description: Deleted
+
+  /bills/{id}/void:
+    post:
+      operationId: voidBill
+      tags: [bills]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Voided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bill"
+
+  /payments:
+    get:
+      operationId: listPayments
+      tags: [payments]
+      summary: List payments
+      responses:
+        "200":
+          description: Payments list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Payment"
+    post:
+      operationId: createPayment
+      tags: [payments]
+      summary: Record payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+
+  /payments/{id}:
+    get:
+      operationId: getPayment
+      tags: [payments]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Payment detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+    delete:
+      operationId: deletePayment
+      tags: [payments]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204":
+          description: Deleted
+
+  /bank-accounts:
+    get:
+      operationId: listBankAccounts
+      tags: [banking]
+      summary: List bank accounts
+      responses:
+        "200":
+          description: Bank accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BankAccount"
+    post:
+      operationId: createBankAccount
+      tags: [banking]
+      summary: Connect a bank account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BankAccountInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BankAccount"
+
+  /bank-accounts/{id}/transactions:
+    get:
+      operationId: getBankTxns
+      tags: [banking]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Bank transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BankTransaction"
+    post:
+      operationId: importBankTransactions
+      tags: [banking]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CsvImportInput"
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportResult"
+
+  /bank-transactions/{id}/categorize:
+    post:
+      operationId: categorizeBankTransaction
+      tags: [banking]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategorizeTxnInput"
+      responses:
+        "200":
+          description: Categorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BankTransaction"
+
+  /reports/profit-loss:
+    get:
+      operationId: getProfitLoss
+      tags: [reports]
+      parameters:
+        - { name: start, in: query, schema: { type: string } }
+        - { name: end, in: query, schema: { type: string } }
+        - { name: nonzero, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: P&L report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfitLossReport"
+
+  /reports/balance-sheet:
+    get:
+      operationId: getBalanceSheet
+      tags: [reports]
+      parameters:
+        - { name: asOf, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Balance sheet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BalanceSheetReport"
+
+  /reports/ar-aging:
+    get:
+      operationId: getArAging
+      tags: [reports]
+      responses:
+        "200":
+          description: AR aging
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgingReport"
+
+  /reports/ap-aging:
+    get:
+      operationId: getApAging
+      tags: [reports]
+      responses:
+        "200":
+          description: AP aging
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgingReport"
+
+  /search:
+    get:
+      operationId: search
+      tags: [dashboard]
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResults"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +652,409 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string }
+        password: { type: string }
+
+    AuthUser:
+      type: object
+      required: [id, email, organizationId, organizationName, role]
+      properties:
+        id: { type: string }
+        email: { type: string }
+        name: { type: ["string", "null"] }
+        organizationId: { type: string }
+        organizationName: { type: string }
+        role: { type: string }
+
+    DashboardSummary:
+      type: object
+      required: [arOpenCents, apOpenCents, cashCents, recentEntries]
+      properties:
+        arOpenCents: { type: integer }
+        apOpenCents: { type: integer }
+        cashCents: { type: integer }
+        recentEntries:
+          type: array
+          items:
+            $ref: "#/components/schemas/JournalEntryItem"
+
+    JournalEntryItem:
+      type: object
+      required: [id, date, memo, sourceType]
+      properties:
+        id: { type: string }
+        date: { type: string }
+        memo: { type: ["string", "null"] }
+        sourceType: { type: string }
+
+    Customer:
+      type: object
+      required: [id, organizationId, name, createdAt]
+      properties:
+        id: { type: string }
+        organizationId: { type: string }
+        name: { type: string }
+        email: { type: ["string", "null"] }
+        phone: { type: ["string", "null"] }
+        billingAddress: { type: ["string", "null"] }
+        createdAt: { type: string }
+
+    CustomerInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        email: { type: ["string", "null"] }
+        phone: { type: ["string", "null"] }
+        billingAddress: { type: ["string", "null"] }
+
+    Vendor:
+      type: object
+      required: [id, organizationId, name, createdAt]
+      properties:
+        id: { type: string }
+        organizationId: { type: string }
+        name: { type: string }
+        email: { type: ["string", "null"] }
+        phone: { type: ["string", "null"] }
+        address: { type: ["string", "null"] }
+        createdAt: { type: string }
+
+    VendorInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        email: { type: ["string", "null"] }
+        phone: { type: ["string", "null"] }
+        address: { type: ["string", "null"] }
+
+    Account:
+      type: object
+      required: [id, organizationId, code, name, type, subtype, isActive, cashFlowCategory, sortOrder]
+      properties:
+        id: { type: string }
+        organizationId: { type: string }
+        code: { type: string }
+        name: { type: string }
+        type: { type: string }
+        subtype: { type: string }
+        isActive: { type: boolean }
+        parentId: { type: ["string", "null"] }
+        systemRole: { type: ["string", "null"] }
+        cashFlowCategory: { type: string }
+        sortOrder: { type: integer }
+
+    TaxRate:
+      type: object
+      required: [id, organizationId, name, rateBps]
+      properties:
+        id: { type: string }
+        organizationId: { type: string }
+        name: { type: string }
+        rateBps: { type: integer }
+
+    LineItemInput:
+      type: object
+      required: [description, quantity, unitPriceCents, accountId]
+      properties:
+        description: { type: string }
+        quantity: { type: integer }
+        unitPriceCents: { type: integer }
+        accountId: { type: string }
+        taxRateId: { type: ["string", "null"] }
+
+    DocumentInput:
+      type: object
+      required: [contactId, number, issueDate, dueDate, lines]
+      properties:
+        contactId: { type: string }
+        number: { type: string }
+        issueDate: { type: string }
+        dueDate: { type: string }
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/LineItemInput"
+
+    LineItem:
+      type: object
+      required: [id, description, quantity, unitPriceCents, accountId, amountCents, sortOrder]
+      properties:
+        id: { type: string }
+        description: { type: string }
+        quantity: { type: integer }
+        unitPriceCents: { type: integer }
+        accountId: { type: string }
+        taxRateId: { type: ["string", "null"] }
+        amountCents: { type: integer }
+        sortOrder: { type: integer }
+
+    Invoice:
+      type: object
+      required: [id, organizationId, customerId, number, status, issueDate, dueDate, subtotalCents, taxCents, totalCents, balanceCents, createdAt]
+      properties:
+        id: { type: string }
+        organizationId: { type: string }
+        customerId: { type: string }
+        customerName: { type: ["string", "null"] }
+        number: { type: string }
+        status: { type: string }
+        issueDate: { type: string }
+        dueDate: { type: string }
+        subtotalCents: { type: integer }
+        taxCents: { type: integer }
+        totalCents: { type: integer }
+        balanceCents: { type: integer }
+        createdAt: { type: string }
+
+    InvoiceDetail:
+      type: object
+      required: [id, organizationId, customerId, number, status, issueDate, dueDate, subtotalCents, taxCents, totalCents, balanceCents, createdAt, lineItems]
+      properties:
+        id: { type: string }
+        organizationId: { type: string }
+        customerId: { type: string }
+        customerName: { type: ["string", "null"] }
+        number: { type: string }
+        status: { type: string }
+        issueDate: { type: string }
+        dueDate: { type: string }
+        subtotalCents: { type: integer }
+        taxCents: { type: integer }
+        totalCents: { type: integer }
+        balanceCents: { type: integer }
+        createdAt: { type: string }
+        lineItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/LineItem"
+
+    Bill:
+      type: object
+      required: [id, organizationId, vendorId, number, status, issueDate, dueDate, subtotalCents, taxCents, totalCents, balanceCents, createdAt]
+      properties:
+        id: { type: string }
+        organizationId: { type: string }
+        vendorId: { type: string }
+        vendorName: { type: ["string", "null"] }
+        number: { type: string }
+        status: { type: string }
+        issueDate: { type: string }
+        dueDate: { type: string }
+        subtotalCents: { type: integer }
+        taxCents: { type: integer }
+        totalCents: { type: integer }
+        balanceCents: { type: integer }
+        createdAt: { type: string }
+
+    BillDetail:
+      type: object
+      required: [id, organizationId, vendorId, number, status, issueDate, dueDate, subtotalCents, taxCents, totalCents, balanceCents, createdAt, lineItems]
+      properties:
+        id: { type: string }
+        organizationId: { type: string }
+        vendorId: { type: string }
+        vendorName: { type: ["string", "null"] }
+        number: { type: string }
+        status: { type: string }
+        issueDate: { type: string }
+        dueDate: { type: string }
+        subtotalCents: { type: integer }
+        taxCents: { type: integer }
+        totalCents: { type: integer }
+        balanceCents: { type: integer }
+        createdAt: { type: string }
+        lineItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/LineItem"
+
+    PaymentInput:
+      type: object
+      required: [direction, amountCents, date]
+      properties:
+        direction: { type: string }
+        customerId: { type: ["string", "null"] }
+        vendorId: { type: ["string", "null"] }
+        amountCents: { type: integer }
+        date: { type: string }
+        method: { type: string }
+        memo: { type: ["string", "null"] }
+        allocations:
+          type: array
+          items:
+            $ref: "#/components/schemas/AllocationInput"
+
+    AllocationInput:
+      type: object
+      required: [amountCents]
+      properties:
+        invoiceId: { type: ["string", "null"] }
+        billId: { type: ["string", "null"] }
+        amountCents: { type: integer }
+
+    Payment:
+      type: object
+      required: [id, organizationId, direction, amountCents, date, method, createdAt]
+      properties:
+        id: { type: string }
+        organizationId: { type: string }
+        direction: { type: string }
+        customerId: { type: ["string", "null"] }
+        customerName: { type: ["string", "null"] }
+        vendorId: { type: ["string", "null"] }
+        vendorName: { type: ["string", "null"] }
+        amountCents: { type: integer }
+        date: { type: string }
+        method: { type: string }
+        memo: { type: ["string", "null"] }
+        createdAt: { type: string }
+
+    BankAccountInput:
+      type: object
+      required: [accountId, institutionName]
+      properties:
+        accountId: { type: string }
+        institutionName: { type: string }
+        accountMask: { type: ["string", "null"] }
+
+    BankAccount:
+      type: object
+      required: [id, organizationId, accountId, institutionName, bankBalanceCents, isActive, createdAt]
+      properties:
+        id: { type: string }
+        organizationId: { type: string }
+        accountId: { type: string }
+        accountName: { type: ["string", "null"] }
+        institutionName: { type: string }
+        accountMask: { type: ["string", "null"] }
+        bankBalanceCents: { type: integer }
+        isActive: { type: boolean }
+        createdAt: { type: string }
+
+    BankTransaction:
+      type: object
+      required: [id, bankAccountId, date, descriptionRaw, amountCents, status, importedAt]
+      properties:
+        id: { type: string }
+        bankAccountId: { type: string }
+        date: { type: string }
+        descriptionRaw: { type: string }
+        amountCents: { type: integer }
+        status: { type: string }
+        matchType: { type: ["string", "null"] }
+        memo: { type: ["string", "null"] }
+        isCleared: { type: boolean }
+        importedAt: { type: string }
+
+    CsvImportInput:
+      type: object
+      required: [csv]
+      properties:
+        csv: { type: string }
+
+    ImportResult:
+      type: object
+      required: [imported, skipped]
+      properties:
+        imported: { type: integer }
+        skipped: { type: integer }
+
+    CategorizeTxnInput:
+      type: object
+      required: [accountId]
+      properties:
+        accountId: { type: string }
+        memo: { type: ["string", "null"] }
+
+    ReportSection:
+      type: object
+      required: [label, rows, total]
+      properties:
+        label: { type: string }
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportRow"
+        total: { type: integer }
+
+    ReportRow:
+      type: object
+      required: [id, code, name, amountCents, depth]
+      properties:
+        id: { type: string }
+        code: { type: string }
+        name: { type: string }
+        amountCents: { type: integer }
+        depth: { type: integer }
+        isSubtotal: { type: boolean }
+
+    ProfitLossReport:
+      type: object
+      required: [income, expenses, netIncomeCents, start, end]
+      properties:
+        income: { $ref: "#/components/schemas/ReportSection" }
+        expenses: { $ref: "#/components/schemas/ReportSection" }
+        netIncomeCents: { type: integer }
+        start: { type: ["string", "null"] }
+        end: { type: ["string", "null"] }
+
+    BalanceSheetReport:
+      type: object
+      required: [assets, liabilities, equity, asOf]
+      properties:
+        assets: { $ref: "#/components/schemas/ReportSection" }
+        liabilities: { $ref: "#/components/schemas/ReportSection" }
+        equity: { $ref: "#/components/schemas/ReportSection" }
+        asOf: { type: ["string", "null"] }
+
+    AgingBucket:
+      type: object
+      required: [id, name, totalCents, current, days30, days60, days90, over90]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        totalCents: { type: integer }
+        current: { type: integer }
+        days30: { type: integer }
+        days60: { type: integer }
+        days90: { type: integer }
+        over90: { type: integer }
+
+    AgingReport:
+      type: object
+      required: [rows, totals]
+      properties:
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgingBucket"
+        totals: { $ref: "#/components/schemas/AgingBucket" }
+
+    SearchResults:
+      type: object
+      required: [customers, vendors, invoices, bills]
+      properties:
+        customers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Customer"
+        vendors:
+          type: array
+          items:
+            $ref: "#/components/schemas/Vendor"
+        invoices:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invoice"
+        bills:
+          type: array
+          items:
+            $ref: "#/components/schemas/Bill"

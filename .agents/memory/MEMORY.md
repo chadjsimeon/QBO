@@ -1,0 +1,1 @@
+- [Ledgerly stack](ledgerly-stack.md) — port layout, proxy config, auth pattern, and seed credentials for this project
