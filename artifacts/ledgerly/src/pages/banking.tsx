@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { Landmark } from "lucide-react";
+import { Landmark, Upload } from "lucide-react";
+import { Link } from "wouter";
 import { apiFetch, formatCents } from "@/lib/api";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
 
 interface BankAccount {
@@ -19,9 +20,12 @@ export default function BankingPage() {
 
   return (
     <>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Banking</h1>
-        <p className="text-sm text-muted-foreground">Connected bank accounts and transaction reconciliation.</p>
+      <div className="mb-6 flex items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Banking</h1>
+          <p className="text-sm text-muted-foreground">Connected bank accounts and transaction reconciliation.</p>
+        </div>
+        <Link href="/banking/import"><Button><Upload className="h-4 w-4 mr-1" /> Import transactions</Button></Link>
       </div>
 
       {accounts.length === 0 ? (

@@ -37,12 +37,20 @@ export const bankTransactions = pgTable("bank_transactions", {
   payeeVendorId: text("payee_vendor_id").references(() => vendors.id),
   payeeCustomerId: text("payee_customer_id").references(() => customers.id),
   memo: text("memo"),
+  referenceNumber: text("reference_number"),
+  payeeName: text("payee_name"),
+  matchedInvoiceId: text("matched_invoice_id"),
+  matchedBillId: text("matched_bill_id"),
+  importBatchId: text("import_batch_id"),
+  importFileName: text("import_file_name"),
+  importedByName: text("imported_by_name"),
   isCleared: boolean("is_cleared").default(false).notNull(),
   reconciliationId: text("reconciliation_id"),
   importedAt: timestamp("imported_at").defaultNow().notNull(),
 }, (t) => [
   index("bank_txns_org_status_idx").on(t.organizationId, t.bankAccountId, t.status),
   index("bank_txns_bank_idx").on(t.bankAccountId),
+  index("bank_txns_batch_idx").on(t.importBatchId),
 ]);
 
 export const reconciliations = pgTable("reconciliations", {

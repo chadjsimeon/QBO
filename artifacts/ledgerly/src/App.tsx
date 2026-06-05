@@ -18,6 +18,7 @@ import BillFormPage from "@/pages/bill-form";
 import PaymentsPage from "@/pages/payments";
 import PaymentFormPage from "@/pages/payment-form";
 import BankingPage from "@/pages/banking";
+import BankImportPage from "@/pages/bank-import";
 import JournalEntriesPage from "@/pages/journal-entries";
 import JournalEntryFormPage from "@/pages/journal-entry-form";
 import JournalEntryDetailPage from "@/pages/journal-entry-detail";
@@ -122,6 +123,9 @@ function AppRouter() {
       </Route>
       <Route path="/payments">
         <AuthGuard><PaymentsPage /></AuthGuard>
+      </Route>
+      <Route path="/banking/import">
+        <AuthGuard><BankImportPage /></AuthGuard>
       </Route>
       <Route path="/banking">
         <AuthGuard><BankingPage /></AuthGuard>
