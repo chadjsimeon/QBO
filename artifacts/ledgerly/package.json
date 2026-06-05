@@ -45,7 +45,7 @@
     "@tailwindcss/vite": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@types/node": "catalog:",
-    "@types/papaparse": "^5.3.14",
+    "@types/papaparse": "^5.5.2",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
@@ -77,6 +77,6 @@
   },
   "dependencies": {
     "decimal.js": "^10.6.0",
-    "papaparse": "^5.4.1"
+    "papaparse": "^5.5.3"
   }
 }
