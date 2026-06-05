@@ -69,9 +69,7 @@ export function DropdownItem({
     "flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground";
   if (href) {
     return (
-      <Link href={href}>
-        <a className={cls}>{children}</a>
-      </Link>
+      <Link href={href} className={cls}>{children}</Link>
     );
   }
   return (

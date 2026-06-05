@@ -16,6 +16,7 @@ export const accounts = pgTable("accounts", {
   parentId: text("parent_id"),
   systemRole: systemRoleEnum("system_role"),
   cashFlowCategory: cashFlowCategoryEnum("cash_flow_category").default("NONE").notNull(),
+  description: text("description"),
   sortOrder: integer("sort_order").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, accounts, taxRates, journalLines } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../lib/session";
+import { postEntry, findSystemAccount } from "../lib/ledger";
 
 const router = Router();
 
@@ -35,7 +36,8 @@ router.get("/accounts", async (req, res) => {
 
 router.post("/accounts", async (req, res) => {
   const orgId = req.session.organizationId!;
-  const { code, name, type, subtype, parentId, cashFlowCategory, sortOrder, isActive } = req.body;
+  const { code, name, type, subtype, parentId, cashFlowCategory, sortOrder, isActive, description,
+          openingBalanceCents, openingBalanceDate } = req.body;
   if (!code?.trim() || !name?.trim()) { res.status(400).json({ error: "Code and name are required" }); return; }
   if (!ACCOUNT_TYPES.includes(type)) { res.status(400).json({ error: "Invalid account type" }); return; }
   const cashFlow: CashFlowCategory = CASH_FLOW_CATEGORIES.includes(cashFlowCategory) ? cashFlowCategory : "NONE";
@@ -51,7 +53,37 @@ router.post("/accounts", async (req, res) => {
       cashFlowCategory: cashFlow,
       sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
       isActive: isActive === undefined ? true : !!isActive,
+      description: description?.trim() || null,
     }).returning();
+
+    // Post opening balance journal entry if provided
+    if (openingBalanceCents && Number.isFinite(openingBalanceCents) && openingBalanceCents !== 0) {
+      const retainedEarnings = await findSystemAccount(orgId, "RETAINED_EARNINGS");
+      if (retainedEarnings) {
+        const date = openingBalanceDate ? new Date(openingBalanceDate) : new Date();
+        const abs = Math.abs(openingBalanceCents);
+        // Assets/Expenses: Dr NewAccount / Cr RetainedEarnings
+        // Liabilities/Equity/Income: Dr RetainedEarnings / Cr NewAccount
+        const isDebitNormal = type === "ASSET" || type === "EXPENSE";
+        await postEntry({
+          organizationId: orgId,
+          date,
+          memo: `Opening balance — ${name.trim()}`,
+          sourceType: "ADJUSTMENT",
+          sourceId: row.id,
+          lines: isDebitNormal
+            ? [
+                { accountId: row.id, debitCents: abs, creditCents: 0 },
+                { accountId: retainedEarnings.id, debitCents: 0, creditCents: abs },
+              ]
+            : [
+                { accountId: retainedEarnings.id, debitCents: abs, creditCents: 0 },
+                { accountId: row.id, debitCents: 0, creditCents: abs },
+              ],
+        });
+      }
+    }
+
     res.status(201).json(serialize(row));
   } catch (err: any) {
     if (isUniqueViolation(err)) { res.status(409).json({ error: `Account code "${code}" already exists` }); return; }
@@ -65,7 +97,7 @@ router.patch("/accounts/:id", async (req, res) => {
     .where(and(eq(accounts.id, req.params.id), eq(accounts.organizationId, orgId)));
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
 
-  const { code, name, type, subtype, parentId, cashFlowCategory, sortOrder, isActive } = req.body;
+  const { code, name, type, subtype, parentId, cashFlowCategory, sortOrder, isActive, description } = req.body;
   const updates: Partial<typeof accounts.$inferInsert> = {};
   if (code !== undefined) {
     if (!code?.trim()) { res.status(400).json({ error: "Code cannot be empty" }); return; }
@@ -85,6 +117,7 @@ router.patch("/accounts/:id", async (req, res) => {
   }
   if (subtype !== undefined) updates.subtype = subtype?.trim() || "general";
   if (parentId !== undefined) updates.parentId = parentId || null;
+  if (description !== undefined) updates.description = description?.trim() || null;
   if (cashFlowCategory !== undefined && CASH_FLOW_CATEGORIES.includes(cashFlowCategory)) updates.cashFlowCategory = cashFlowCategory;
   if (sortOrder !== undefined && Number.isFinite(sortOrder)) updates.sortOrder = sortOrder;
   if (isActive !== undefined) updates.isActive = !!isActive;
