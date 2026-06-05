@@ -3,8 +3,8 @@ import { useLocation } from "wouter";
 import {
   Plus, FileText, DollarSign, FileSpreadsheet, ClipboardList, FileMinus,
   Receipt, RotateCcw, UserPlus, ShoppingCart, BookCheck, Package, FilePlus,
-  CreditCard, Building2, Clock, CheckSquare, Landmark, ArrowLeftRight,
-  BookOpen, MessageSquare, Banknote, X,
+  CreditCard, Building2, Landmark, ArrowLeftRight,
+  BookOpen, Banknote, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -27,43 +27,35 @@ const CATEGORIES: Category[] = [
     items: [
       { label: "Invoice",         icon: FileText,        href: "/invoices/new" },
       { label: "Receive payment", icon: DollarSign,      href: "/payments/new" },
-      { label: "Statement",       icon: FileSpreadsheet, soon: true },
-      { label: "Estimate",        icon: ClipboardList,   soon: true },
-      { label: "Credit note",     icon: FileMinus,       soon: true },
-      { label: "Sales receipt",   icon: Receipt,         soon: true },
-      { label: "Refund receipt",  icon: RotateCcw,       soon: true },
+      { label: "Statement",       icon: FileSpreadsheet, href: "/statements" },
+      { label: "Estimate",        icon: ClipboardList,   href: "/estimates/new" },
+      { label: "Credit note",     icon: FileMinus,       href: "/credit-notes/new" },
+      { label: "Sales receipt",   icon: Receipt,         href: "/sales-receipts/new" },
+      { label: "Refund receipt",  icon: RotateCcw,       href: "/sales-receipts/new?mode=refund" },
       { label: "Add customer",    icon: UserPlus,        href: "/customers" },
     ],
   },
   {
     title: "Suppliers",
     items: [
-      { label: "Expense",          icon: ShoppingCart, soon: true },
-      { label: "Cheque",           icon: BookCheck,    soon: true },
+      { label: "Expense",          icon: ShoppingCart, href: "/expenses/new" },
+      { label: "Cheque",           icon: BookCheck,    href: "/expenses/new?mode=cheque" },
       { label: "Bill",             icon: Receipt,      href: "/bills/new" },
       { label: "Pay bills",        icon: Banknote,     href: "/payments/new" },
-      { label: "Purchase order",   icon: Package,      soon: true },
-      { label: "Supplier credit",  icon: FilePlus,     soon: true },
-      { label: "Credit card credit", icon: CreditCard, soon: true },
+      { label: "Purchase order",   icon: Package,      href: "/purchase-orders/new" },
+      { label: "Supplier credit",  icon: FilePlus,     href: "/vendor-credits/new" },
+      { label: "Credit card credit", icon: CreditCard, href: "/expenses/new?mode=cc-credit" },
       { label: "Add supplier",     icon: Building2,    href: "/vendors" },
-    ],
-  },
-  {
-    title: "Team",
-    items: [
-      { label: "Weekly timesheet", icon: Clock, soon: true },
     ],
   },
   {
     title: "Other",
     items: [
-      { label: "Task",                  icon: CheckSquare,   soon: true },
       { label: "Bank deposit",          icon: Landmark,      href: "/banking" },
-      { label: "Transfer",              icon: ArrowLeftRight, soon: true },
-      { label: "Journal entry",         icon: BookOpen,      soon: true },
-      { label: "Pay down credit card",  icon: CreditCard,    soon: true },
+      { label: "Transfer",              icon: ArrowLeftRight, href: "/transfers/new" },
+      { label: "Journal entry",         icon: BookOpen,      href: "/journal-entries/new" },
+      { label: "Pay down credit card",  icon: CreditCard,    href: "/transfers/new?mode=cc" },
       { label: "Add product/service",   icon: Package,       soon: true },
-      { label: "New chat",              icon: MessageSquare, soon: true },
     ],
   },
 ];
@@ -128,7 +120,7 @@ export function CreateMenu() {
             </div>
 
             {/* Category columns */}
-            <div className="grid grid-cols-4 divide-x divide-border">
+            <div className="grid grid-cols-3 divide-x divide-border">
               {CATEGORIES.map(cat => (
                 <div key={cat.title} className="flex flex-col">
                   {/* Category heading */}

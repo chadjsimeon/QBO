@@ -3,7 +3,8 @@ import { organizations } from "./auth";
 import { accounts } from "./accounts";
 
 export const journalSourceTypeEnum = pgEnum("journal_source_type", [
-  "INVOICE", "BILL", "PAYMENT", "MANUAL", "ADJUSTMENT", "BANK"
+  "INVOICE", "BILL", "PAYMENT", "MANUAL", "ADJUSTMENT", "BANK",
+  "EXPENSE", "SALES_RECEIPT", "REFUND_RECEIPT", "CREDIT_NOTE", "VENDOR_CREDIT", "CC_CREDIT", "TRANSFER"
 ]);
 
 export const journalEntries = pgTable("journal_entries", {

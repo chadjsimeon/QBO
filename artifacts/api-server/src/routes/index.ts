@@ -11,6 +11,15 @@ import bankingRouter from "./banking";
 import reportsRouter from "./reports";
 import dashboardRouter from "./dashboard";
 import taxRatesRouter from "./tax-rates";
+import journalEntriesRouter from "./journal-entries";
+import transfersRouter from "./transfers";
+import expensesRouter from "./expenses";
+import salesReceiptsRouter from "./sales-receipts";
+import creditNotesRouter from "./credit-notes";
+import vendorCreditsRouter from "./vendor-credits";
+import estimatesRouter from "./estimates";
+import purchaseOrdersRouter from "./purchase-orders";
+import statementsRouter from "./statements";
 
 const router: IRouter = Router();
 
@@ -26,5 +35,14 @@ router.use(bankingRouter);
 router.use(reportsRouter);
 router.use(dashboardRouter);
 router.use(taxRatesRouter);
+router.use(journalEntriesRouter);
+router.use(transfersRouter);
+router.use(expensesRouter);
+router.use(salesReceiptsRouter);
+router.use(creditNotesRouter);
+router.use(vendorCreditsRouter);
+router.use(estimatesRouter);
+router.use(purchaseOrdersRouter);
+router.use(statementsRouter);
 
 export default router;

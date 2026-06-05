@@ -11,7 +11,7 @@ export interface PostEntryInput {
   organizationId: string;
   date: Date;
   memo?: string;
-  sourceType: "INVOICE" | "BILL" | "PAYMENT" | "MANUAL" | "ADJUSTMENT" | "BANK";
+  sourceType: "INVOICE" | "BILL" | "PAYMENT" | "MANUAL" | "ADJUSTMENT" | "BANK" | "EXPENSE" | "SALES_RECEIPT" | "REFUND_RECEIPT" | "CREDIT_NOTE" | "VENDOR_CREDIT" | "CC_CREDIT" | "TRANSFER";
   sourceId?: string;
   lines: PostLine[];
   isReversal?: boolean;
