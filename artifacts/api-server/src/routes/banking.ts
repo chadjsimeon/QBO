@@ -52,6 +52,25 @@ router.post("/bank-accounts", async (req, res) => {
   res.status(201).json(serializeBankAccount(row));
 });
 
+// CoA accounts with bank-type subtypes that haven't been connected yet
+router.get("/bank-accounts/unlinked", async (req, res) => {
+  const orgId = req.session.organizationId!;
+  const linked = await db.select({ accountId: bankAccounts.accountId })
+    .from(bankAccounts)
+    .where(eq(bankAccounts.organizationId, orgId));
+  const linkedIds = linked.map(r => r.accountId);
+
+  const BANKING_SUBTYPES = ["bank", "savings", "credit_card"];
+  const rows = await db.select().from(accounts)
+    .where(eq(accounts.organizationId, orgId))
+    .orderBy(accounts.sortOrder, accounts.code);
+
+  const unlinked = rows.filter(
+    a => BANKING_SUBTYPES.includes(a.subtype) && !linkedIds.includes(a.id)
+  );
+  res.json(unlinked.map(a => ({ id: a.id, code: a.code, name: a.name, subtype: a.subtype })));
+});
+
 router.get("/bank-accounts/:id/transactions", async (req, res) => {
   const orgId = req.session.organizationId!;
   const rows = await db.select().from(bankTransactions)

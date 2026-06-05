@@ -118,11 +118,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
             <Menu className="h-5 w-5" />
           </Button>
-          <Link href="/search">
-            <a className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground border rounded-md px-3 py-1.5 ml-2 bg-muted/40 min-w-[200px]">
-              <Search className="h-3.5 w-3.5 shrink-0" />
-              Search…
-            </a>
+          <Link href="/search" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground border rounded-md px-3 py-1.5 ml-2 bg-muted/40 min-w-[200px]">
+            <Search className="h-3.5 w-3.5 shrink-0" />
+            Search…
           </Link>
           <div className="flex-1" />
           <CreateMenu />

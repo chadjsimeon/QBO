@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, accounts, taxRates, journalLines } from "@workspace/db";
+import { db, accounts, taxRates, journalLines, bankAccounts } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../lib/session";
 import { postEntry, findSystemAccount } from "../lib/ledger";
@@ -82,6 +82,17 @@ router.post("/accounts", async (req, res) => {
               ],
         });
       }
+    }
+
+    // Auto-register bank/savings/credit_card accounts in the banking table
+    // so they appear immediately in the import and banking pages.
+    const BANKING_SUBTYPES = ["bank", "savings", "credit_card"];
+    if (BANKING_SUBTYPES.includes(row.subtype)) {
+      await db.insert(bankAccounts).values({
+        organizationId: orgId,
+        accountId: row.id,
+        institutionName: row.name,
+      }).onConflictDoNothing();
     }
 
     res.status(201).json(serialize(row));
