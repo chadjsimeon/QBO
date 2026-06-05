@@ -20,7 +20,8 @@ import {
   type FieldKey, type DateFormat, type MappedRow,
 } from "@/lib/csv-import";
 
-interface BankAccount { id: string; institutionName: string; accountMask: string | null; accountName: string | null; }
+interface BankAccount { id: string; accountId: string; institutionName: string; accountMask: string | null; accountName: string | null; }
+interface CoaBankAccount { id: string; code: string; name: string; subtype: string; }
 interface MatchInfo { kind: "invoice" | "bill"; id: string; number: string; label: string; confidence: number }
 interface AnalyzeRow { index: number; isDuplicate: boolean; duplicateOfId: string | null; match: MatchInfo | null }
 
@@ -42,7 +43,15 @@ export default function BankImportPage() {
 
   const [step, setStep] = useState(1);
   const { data: bankAccounts = [] } = useQuery({ queryKey: ["bank-accounts"], queryFn: () => apiFetch<BankAccount[]>("/bank-accounts") });
+  const { data: unlinkedAccounts = [] } = useQuery({ queryKey: ["bank-accounts-unlinked"], queryFn: () => apiFetch<CoaBankAccount[]>("/bank-accounts/unlinked") });
 
+  // Combined dropdown options: connected accounts (bank_accounts.id as value) + unlinked CoA accounts (accounts.id prefixed)
+  const dropdownOptions = useMemo(() => [
+    ...bankAccounts.map(b => ({ value: `linked:${b.id}`, label: `${b.institutionName}${b.accountMask ? ` ···${b.accountMask}` : ""}${b.accountName ? ` — ${b.accountName}` : ""}` })),
+    ...unlinkedAccounts.map(u => ({ value: `coa:${u.id}`, label: `${u.name} (${u.code})` })),
+  ], [bankAccounts, unlinkedAccounts]);
+
+  const [selectedOption, setSelectedOption] = useState("");
   const [bankAccountId, setBankAccountId] = useState("");
   const [fileName, setFileName] = useState("");
   const [headers, setHeaders] = useState<string[]>([]);
@@ -89,10 +98,20 @@ export default function BankImportPage() {
 
   // ── Step transitions ──────────────────────────────────────────────────────
   const analyze = useMutation({
-    mutationFn: () => apiFetch<{ results: AnalyzeRow[]; duplicateCount: number; matchCount: number }>(`/bank-accounts/${bankAccountId}/import/analyze`, {
-      method: "POST",
-      body: JSON.stringify({ transactions: validRows.map((r) => ({ date: r.date!.toISOString(), amountCents: r.amountCents, description: r.description })) }),
-    }),
+    mutationFn: async () => {
+      // Auto-connect CoA bank accounts that haven't been connected yet
+      let resolvedId = bankAccountId;
+      if (!resolvedId && selectedOption.startsWith("coa:")) {
+        const coaId = selectedOption.slice(4);
+        const ensured = await apiFetch<BankAccount>("/bank-accounts/ensure", { method: "POST", body: JSON.stringify({ accountId: coaId }) });
+        resolvedId = ensured.id;
+        setBankAccountId(resolvedId);
+      }
+      return apiFetch<{ results: AnalyzeRow[]; duplicateCount: number; matchCount: number }>(`/bank-accounts/${resolvedId}/import/analyze`, {
+        method: "POST",
+        body: JSON.stringify({ transactions: validRows.map((r) => ({ date: r.date!.toISOString(), amountCents: r.amountCents, description: r.description })) }),
+      });
+    },
     onSuccess: (data) => {
       const byIndex = new Map(data.results.map((r) => [r.index, r]));
       setReview(validRows.map((r, i) => {
@@ -138,7 +157,8 @@ export default function BankImportPage() {
     };
   }, [included, skipDuplicates]);
 
-  const selectedAccount = bankAccounts.find((b) => b.id === bankAccountId);
+  const selectedAccount = bankAccounts.find((b) => b.id === bankAccountId)
+    ?? (selectedOption.startsWith("coa:") ? unlinkedAccounts.find(u => u.id === selectedOption.slice(4)) : undefined);
 
   function downloadErrorReport() {
     const lines = ["row,reason", ...invalidRows.map((r) => `${r.rowIndex},"${r.errors.join("; ")}"`)];
@@ -177,23 +197,23 @@ export default function BankImportPage() {
           <CardContent className="space-y-4">
             <div className="max-w-md space-y-2">
               <Label>Import into bank account *</Label>
-              <Select value={bankAccountId} onChange={(e) => setBankAccountId(e.target.value)}>
+              <Select value={selectedOption} onChange={(e) => { setSelectedOption(e.target.value); setBankAccountId(""); }}>
                 <option value="">Select account…</option>
-                {bankAccounts.map((b) => <option key={b.id} value={b.id}>{b.institutionName}{b.accountMask ? ` ···${b.accountMask}` : ""} — {b.accountName}</option>)}
+                {dropdownOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
               </Select>
-              {bankAccounts.length === 0 && <p className="text-xs text-muted-foreground">No bank accounts yet. Connect one in Banking first.</p>}
+              {dropdownOptions.length === 0 && <p className="text-xs text-muted-foreground">No bank accounts yet. Create one in Chart of Accounts first.</p>}
             </div>
 
             <div
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!bankAccountId) { toast({ title: "Pick an account first", variant: "destructive" }); return; } const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); }}
-              className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed py-14 text-center transition-colors ${dragOver ? "border-primary bg-primary/5" : "border-border"} ${!bankAccountId ? "opacity-60" : ""}`}
+              onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!selectedOption) { toast({ title: "Pick an account first", variant: "destructive" }); return; } const f = e.dataTransfer.files?.[0]; if (f) handleFile(f); }}
+              className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed py-14 text-center transition-colors ${dragOver ? "border-primary bg-primary/5" : "border-border"} ${!selectedOption ? "opacity-60" : ""}`}
             >
               <UploadCloud className="h-10 w-10 text-muted-foreground" />
               <p className="mt-3 text-sm font-medium">Drag &amp; drop your .csv here</p>
               <p className="text-xs text-muted-foreground">or</p>
-              <Button className="mt-2" variant="outline" disabled={!bankAccountId} onClick={() => fileRef.current?.click()}>Choose file</Button>
+              <Button className="mt-2" variant="outline" disabled={!selectedOption} onClick={() => fileRef.current?.click()}>Choose file</Button>
               <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
               <p className="mt-3 text-xs text-muted-foreground">CSV only · up to 25MB · first row should be column headers</p>
             </div>

@@ -52,6 +52,32 @@ router.post("/bank-accounts", async (req, res) => {
   res.status(201).json(serializeBankAccount(row));
 });
 
+// Auto-connect: look up or create a bank_accounts row for a CoA account.
+// Used by the import wizard so users don't need a manual "Connect" step first.
+router.post("/bank-accounts/ensure", async (req, res) => {
+  const orgId = req.session.organizationId!;
+  const { accountId } = req.body as { accountId?: string };
+  if (!accountId) { res.status(400).json({ error: "accountId required" }); return; }
+
+  const [existing] = await db.select({ ba: bankAccounts, accountName: accounts.name })
+    .from(bankAccounts)
+    .leftJoin(accounts, eq(bankAccounts.accountId, accounts.id))
+    .where(and(eq(bankAccounts.accountId, accountId), eq(bankAccounts.organizationId, orgId)));
+  if (existing) { res.json(serializeBankAccount(existing.ba, existing.accountName)); return; }
+
+  const [acct] = await db.select().from(accounts)
+    .where(and(eq(accounts.id, accountId), eq(accounts.organizationId, orgId)));
+  if (!acct) { res.status(404).json({ error: "Account not found" }); return; }
+
+  const [row] = await db.insert(bankAccounts).values({
+    organizationId: orgId,
+    accountId,
+    institutionName: acct.name,
+  }).returning();
+
+  res.json(serializeBankAccount(row, acct.name));
+});
+
 // CoA accounts with bank-type subtypes that haven't been connected yet
 router.get("/bank-accounts/unlinked", async (req, res) => {
   const orgId = req.session.organizationId!;
