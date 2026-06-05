@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { AppLayout } from "@/components/app-layout";
 import LoginPage from "@/pages/login";
+import SignupPage from "@/pages/signup";
 import DashboardPage from "@/pages/dashboard";
 import CustomersPage from "@/pages/customers";
 import VendorsPage from "@/pages/vendors";
@@ -79,6 +80,7 @@ function AppRouter() {
   return (
     <Switch>
       <Route path="/login" component={LoginPage} />
+      <Route path="/signup" component={SignupPage} />
       <Route path="/">
         {user ? <Redirect to="/dashboard" /> : <Redirect to="/login" />}
       </Route>

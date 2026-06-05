@@ -5,24 +5,35 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BookOpen } from "lucide-react";
+import { apiFetch } from "@/lib/api";
 
-export default function LoginPage() {
+export default function SignupPage() {
   const { login } = useAuth();
   const [, navigate] = useLocation();
-  const [email, setEmail] = useState("owner@acme.test");
-  const [password, setPassword] = useState("password123");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [companyName, setCompanyName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
     setLoading(true);
     try {
+      await apiFetch("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({ name, email, password, companyName }),
+      });
       await login(email, password);
       navigate("/dashboard");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -35,7 +46,6 @@ export default function LoginPage() {
     >
       <div className="w-full max-w-sm">
         <div className="rounded-md overflow-hidden shadow-lg border border-border">
-          {/* Branded header band */}
           <div
             className="px-6 py-6 flex flex-col items-center gap-3"
             style={{ background: "linear-gradient(135deg, #166534 0%, #15803d 100%)" }}
@@ -49,15 +59,37 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Form area */}
           <div className="bg-white px-6 py-6">
-            <h2 className="text-base font-semibold text-foreground mb-4">Sign in to your account</h2>
+            <h2 className="text-base font-semibold text-foreground mb-4">Create your account</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1">
+                <Label htmlFor="name">Your name</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="Jane Smith"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="company">Company name</Label>
+                <Input
+                  id="company"
+                  type="text"
+                  placeholder="Acme Inc."
+                  value={companyName}
+                  onChange={e => setCompanyName(e.target.value)}
+                  required
+                />
+              </div>
               <div className="space-y-1">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
+                  placeholder="jane@acme.com"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
@@ -68,6 +100,7 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type="password"
+                  placeholder="Min. 8 characters"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
@@ -75,15 +108,15 @@ export default function LoginPage() {
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Signing in…" : "Sign in"}
+                {loading ? "Creating account…" : "Create account"}
               </Button>
             </form>
           </div>
         </div>
 
         <p className="mt-4 text-center text-xs text-muted-foreground">
-          Don't have an account?{" "}
-          <Link href="/signup" className="text-primary hover:underline font-medium">Create one</Link>
+          Already have an account?{" "}
+          <Link href="/login" className="text-primary hover:underline font-medium">Sign in</Link>
         </p>
       </div>
     </main>
