@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard, FileText, Receipt, CreditCard,
   Users, Building2, BookOpen, Landmark, BarChart3, FileBarChart,
-  LogOut, Menu, X, Search,
+  BookText, Scale, LogOut, Menu, X, Search,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,8 @@ const NAV = [
   { label: "Customers",          href: "/customers",           icon: Users },
   { label: "Vendors",            href: "/vendors",             icon: Building2 },
   { label: "Accounts",           href: "/accounts",            icon: BookOpen },
+  { label: "General Ledger",     href: "/general-ledger",      icon: BookText },
+  { label: "Trial Balance",      href: "/trial-balance",       icon: Scale },
   { label: "Banking",            href: "/banking",             icon: Landmark },
   { label: "Reports",            href: "/reports",             icon: BarChart3 },
   { label: "Mgmt Reports",       href: "/management-reports",  icon: FileBarChart },

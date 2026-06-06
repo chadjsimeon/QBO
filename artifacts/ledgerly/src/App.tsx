@@ -45,6 +45,9 @@ import PoDetailPage from "@/pages/po-detail";
 import StatementPage from "@/pages/statement";
 import ReportsPage from "@/pages/reports";
 import ManagementReportsPage from "@/pages/management-reports";
+import GeneralLedgerPage from "@/pages/general-ledger";
+import TrialBalancePage from "@/pages/trial-balance";
+import TrialBalanceImportPage from "@/pages/trial-balance-import";
 import SearchPage from "@/pages/search";
 
 const queryClient = new QueryClient({
@@ -200,6 +203,15 @@ function AppRouter() {
       </Route>
       <Route path="/statements">
         <AuthGuard><StatementPage /></AuthGuard>
+      </Route>
+      <Route path="/general-ledger">
+        <AuthGuard><GeneralLedgerPage /></AuthGuard>
+      </Route>
+      <Route path="/trial-balance/import">
+        <AuthGuard><TrialBalanceImportPage /></AuthGuard>
+      </Route>
+      <Route path="/trial-balance">
+        <AuthGuard><TrialBalancePage /></AuthGuard>
       </Route>
       <Route path="/reports">
         <AuthGuard><ReportsPage /></AuthGuard>

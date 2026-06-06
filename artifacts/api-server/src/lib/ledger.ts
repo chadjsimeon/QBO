@@ -61,11 +61,39 @@ export async function findSystemAccount(organizationId: string, role: string) {
   return results[0];
 }
 
+// Opening Balance Equity is the conventional offset account for opening balances
+// brought in via a trial balance import. Find it by name, or create it.
+export async function findOrCreateOpeningBalanceEquity(organizationId: string) {
+  const existing = await db.select().from(accounts).where(
+    and(eq(accounts.organizationId, organizationId), eq(accounts.name, "Opening Balance Equity"))
+  );
+  if (existing[0]) return existing[0];
+
+  // Pick a non-colliding code in the equity (3xxx) range.
+  const equityAccts = await db.select().from(accounts).where(
+    and(eq(accounts.organizationId, organizationId), eq(accounts.type, "EQUITY"))
+  );
+  const used = new Set(equityAccts.map(a => a.code));
+  let code = "3900";
+  for (let i = 3900; i <= 3999 && used.has(code); i++) code = String(i);
+
+  const [created] = await db.insert(accounts).values({
+    organizationId,
+    code,
+    name: "Opening Balance Equity",
+    type: "EQUITY",
+    subtype: "equity",
+    cashFlowCategory: "NONE",
+    sortOrder: 390,
+  }).returning();
+  return created;
+}
+
 export async function getNetDebitByAccount(
   organizationId: string,
-  dateFilter: { gte?: Date; lte?: Date } = {}
+  dateFilter: { gte?: Date; lte?: Date; lt?: Date } = {}
 ): Promise<Map<string, number>> {
-  const { gte, lte } = dateFilter;
+  const { gte, lte, lt } = dateFilter;
 
   // Build parameterized query to avoid SQL injection
   let query = sql`
@@ -76,6 +104,7 @@ export async function getNetDebitByAccount(
   `;
   if (gte) query = sql`${query} AND je.date >= ${gte}`;
   if (lte) query = sql`${query} AND je.date <= ${lte}`;
+  if (lt) query = sql`${query} AND je.date < ${lt}`;
   query = sql`${query} GROUP BY jl.account_id`;
 
   const rows = await db.execute<{ account_id: string; net: string }>(query);

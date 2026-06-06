@@ -14,3 +14,4 @@ export * from "./credit-notes";
 export * from "./vendor-credits";
 export * from "./estimates";
 export * from "./purchase-orders";
+export * from "./trial-balance";

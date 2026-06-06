@@ -20,6 +20,9 @@ import vendorCreditsRouter from "./vendor-credits";
 import estimatesRouter from "./estimates";
 import purchaseOrdersRouter from "./purchase-orders";
 import statementsRouter from "./statements";
+import generalLedgerRouter from "./general-ledger";
+import trialBalanceRouter from "./trial-balance";
+import trialBalanceImportRouter from "./trial-balance-import";
 
 const router: IRouter = Router();
 
@@ -44,5 +47,8 @@ router.use(vendorCreditsRouter);
 router.use(estimatesRouter);
 router.use(purchaseOrdersRouter);
 router.use(statementsRouter);
+router.use(generalLedgerRouter);
+router.use(trialBalanceRouter);
+router.use(trialBalanceImportRouter);
 
 export default router;
