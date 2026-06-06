@@ -197,7 +197,7 @@ export default function BankImportPage() {
           <CardContent className="space-y-4">
             <div className="max-w-md space-y-2">
               <Label>Import into bank account *</Label>
-              <Select value={selectedOption} onChange={(e) => { setSelectedOption(e.target.value); setBankAccountId(""); }}>
+              <Select value={selectedOption} onChange={(e) => { const v = e.target.value; setSelectedOption(v); setBankAccountId(v.startsWith("linked:") ? v.slice(7) : ""); }}>
                 <option value="">Select account…</option>
                 {dropdownOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
               </Select>
