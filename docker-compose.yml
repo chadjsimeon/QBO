@@ -1,0 +1,29 @@
+# Local Postgres for Ledgerly. Data lives in the named volume `qbo_qbo-pgdata`,
+# which persists across container restarts/recreations and `docker compose down`
+# (but NOT `down -v` — never run that). See DATABASE.md.
+services:
+  postgres:
+    image: postgres:16
+    container_name: qbo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: qbo
+      POSTGRES_PASSWORD: qbo
+      # Only used when initializing an EMPTY volume. The existing volume already
+      # has the `ledgerly` database, so this just keeps fresh setups consistent.
+      POSTGRES_DB: ledgerly
+    ports:
+      - "5433:5432"
+    volumes:
+      - qbo-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qbo -d ledgerly"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  # Reuse the pre-existing volume so current company data is never orphaned.
+  qbo-pgdata:
+    external: true
+    name: qbo_qbo-pgdata
