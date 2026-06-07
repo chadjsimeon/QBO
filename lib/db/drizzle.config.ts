@@ -11,4 +11,8 @@ export default defineConfig({
   dbCredentials: {
     url: process.env.DATABASE_URL,
   },
+  // The `session` table is created and owned at runtime by connect-pg-simple,
+  // not by Drizzle. Exclude it so `drizzle-kit push` never tries to drop it
+  // (which `push-force` would do non-interactively, logging everyone out).
+  tablesFilter: ["!session"],
 });
