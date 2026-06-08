@@ -11,6 +11,7 @@ interface BankAccount {
   id: string; accountId: string; accountName: string | null;
   institutionName: string; accountMask: string | null;
   bankBalanceCents: number; isActive: boolean; createdAt: string;
+  forReviewCount: number; bookBalanceCents: number;
 }
 
 interface UnlinkedAccount {
@@ -68,23 +69,31 @@ export default function BankingPage() {
       {accounts.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           {accounts.map(ba => (
-            <Card key={ba.id}>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Landmark className="h-4 w-4 text-muted-foreground" />
-                  {ba.institutionName}
-                  {ba.accountMask && (
-                    <span className="text-muted-foreground font-normal">···{ba.accountMask}</span>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold tabular-nums">{formatCents(ba.bankBalanceCents)}</div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  GL account: {ba.accountName ?? "—"}
-                </div>
-              </CardContent>
-            </Card>
+            <Link key={ba.id} href={`/banking/${ba.id}`}>
+              <Card className="cursor-pointer transition-colors hover:border-primary/50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Landmark className="h-4 w-4 text-muted-foreground" />
+                    {ba.institutionName}
+                    {ba.accountMask && (
+                      <span className="text-muted-foreground font-normal">···{ba.accountMask}</span>
+                    )}
+                    {ba.forReviewCount > 0 && (
+                      <span className="ml-auto rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+                        {ba.forReviewCount} to review
+                      </span>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold tabular-nums">{formatCents(ba.bookBalanceCents)}</div>
+                  <div className="text-xs text-muted-foreground">Book balance</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    GL account: {ba.accountName ?? "—"}
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       )}

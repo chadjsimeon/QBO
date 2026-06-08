@@ -20,6 +20,7 @@ import PaymentsPage from "@/pages/payments";
 import PaymentFormPage from "@/pages/payment-form";
 import BankingPage from "@/pages/banking";
 import BankImportPage from "@/pages/bank-import";
+import BankAccountReviewPage from "@/pages/bank-account-review";
 import JournalEntriesPage from "@/pages/journal-entries";
 import JournalEntryFormPage from "@/pages/journal-entry-form";
 import JournalEntryDetailPage from "@/pages/journal-entry-detail";
@@ -131,6 +132,9 @@ function AppRouter() {
       </Route>
       <Route path="/banking/import">
         <AuthGuard><BankImportPage /></AuthGuard>
+      </Route>
+      <Route path="/banking/:id">
+        <AuthGuard><BankAccountReviewPage /></AuthGuard>
       </Route>
       <Route path="/banking">
         <AuthGuard><BankingPage /></AuthGuard>

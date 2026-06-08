@@ -496,7 +496,7 @@ export default function BankImportPage() {
           )}
 
           <div className="flex gap-3">
-            <Button asChild><Link href="/banking">Go to banking</Link></Button>
+            <Button asChild><Link href={bankAccountId ? `/banking/${bankAccountId}` : "/banking"}>Review &amp; categorize</Link></Button>
             <Button variant="outline" onClick={() => { setStep(1); setHeaders([]); setRows([]); setReview([]); setResult(null); setConfirmed(false); setFileName(""); setProgress(0); }}>Import another file</Button>
           </div>
         </div>
