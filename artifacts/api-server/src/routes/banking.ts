@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { db, bankAccounts, bankTransactions, accounts, invoices, bills, customers, vendors, journalEntries, journalLines } from "@workspace/db";
 import { eq, and, inArray, sql } from "drizzle-orm";
+import { CreateBankAccountBody, ImportBankTransactionsBody, CategorizeBankTransactionBody } from "@workspace/api-zod";
 import { requireAuth } from "../lib/session";
 import { postEntry, getNetDebitByAccount } from "../lib/ledger";
+import { validateBody } from "../lib/validate";
 
 const router = Router();
 
@@ -97,12 +99,9 @@ router.get("/bank-accounts", async (req, res) => {
   })));
 });
 
-router.post("/bank-accounts", async (req, res) => {
+router.post("/bank-accounts", validateBody(CreateBankAccountBody), async (req, res) => {
   const orgId = req.session.organizationId!;
   const { accountId, institutionName, accountMask } = req.body;
-  if (!accountId || !institutionName) {
-    res.status(400).json({ error: "accountId and institutionName required" }); return;
-  }
 
   const [row] = await db.insert(bankAccounts).values({
     organizationId: orgId,
@@ -173,7 +172,7 @@ router.get("/bank-accounts/:id/transactions", async (req, res) => {
   res.json(rows.map(serializeTxn));
 });
 
-router.post("/bank-accounts/:id/transactions", async (req, res) => {
+router.post("/bank-accounts/:id/transactions", validateBody(ImportBankTransactionsBody), async (req, res) => {
   const orgId = req.session.organizationId!;
   const bankAccountId = req.params.id;
   const [ba] = await db.select().from(bankAccounts)
@@ -208,10 +207,9 @@ router.post("/bank-accounts/:id/transactions", async (req, res) => {
   res.json({ imported, skipped });
 });
 
-router.post("/bank-transactions/:id/categorize", async (req, res) => {
+router.post("/bank-transactions/:id/categorize", validateBody(CategorizeBankTransactionBody), async (req, res) => {
   const orgId = req.session.organizationId!;
   const { accountId, memo } = req.body;
-  if (!accountId) { res.status(400).json({ error: "accountId required" }); return; }
 
   const [txn] = await db.select().from(bankTransactions)
     .where(and(eq(bankTransactions.id, req.params.id), eq(bankTransactions.organizationId, orgId)));

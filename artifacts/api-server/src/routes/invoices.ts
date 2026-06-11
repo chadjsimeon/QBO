@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { db, invoices, invoiceLineItems, customers, taxRates, journalEntries, journalLines, accounts } from "@workspace/db";
 import { eq, and, inArray } from "drizzle-orm";
+import { CreateInvoiceBody, UpdateInvoiceBody } from "@workspace/api-zod";
 import { requireAuth } from "../lib/session";
 import { findSystemAccount, postEntry } from "../lib/ledger";
+import { validateBody } from "../lib/validate";
 
 const router = Router();
 
@@ -45,7 +47,7 @@ router.get("/invoices", async (req, res) => {
   res.json(rows.map(r => serializeInvoice(r.inv, r.customerName)));
 });
 
-router.post("/invoices", async (req, res) => {
+router.post("/invoices", validateBody(CreateInvoiceBody), async (req, res) => {
   const orgId = req.session.organizationId!;
   const { contactId, number, issueDate, dueDate, lines } = req.body;
   if (!contactId || !number || !issueDate || !dueDate || !lines?.length) {
@@ -103,7 +105,7 @@ router.get("/invoices/:id", async (req, res) => {
   res.json({ ...serializeInvoice(row.inv, row.customerName), lineItems: lines });
 });
 
-router.patch("/invoices/:id", async (req, res) => {
+router.patch("/invoices/:id", validateBody(UpdateInvoiceBody), async (req, res) => {
   const orgId = req.session.organizationId!;
   const { contactId, number, issueDate, dueDate, lines } = req.body;
 

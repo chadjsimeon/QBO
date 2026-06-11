@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { db, payments, paymentAllocations, customers, vendors, invoices, bills, accounts, journalEntries, journalLines } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
+import { CreatePaymentBody } from "@workspace/api-zod";
 import { requireAuth } from "../lib/session";
 import { postEntry } from "../lib/ledger";
+import { validateBody } from "../lib/validate";
 
 const router = Router();
 
@@ -33,7 +35,7 @@ router.get("/payments", async (req, res) => {
   res.json(rows.map(r => serialize(r.payment, r.customerName, r.vendorName)));
 });
 
-router.post("/payments", async (req, res) => {
+router.post("/payments", validateBody(CreatePaymentBody), async (req, res) => {
   const orgId = req.session.organizationId!;
   const { direction, customerId, vendorId, amountCents, date, method, memo, allocations } = req.body;
 

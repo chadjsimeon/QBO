@@ -1,7 +1,9 @@
 import { Router } from "express";
 import { db, customers } from "@workspace/db";
 import { eq, and, ilike, or } from "drizzle-orm";
+import { CreateCustomerBody, UpdateCustomerBody } from "@workspace/api-zod";
 import { requireAuth } from "../lib/session";
+import { validateBody } from "../lib/validate";
 
 const router = Router();
 
@@ -15,10 +17,10 @@ router.get("/customers", async (req, res) => {
   res.json(rows.map(r => ({ ...r, createdAt: r.createdAt.toISOString() })));
 });
 
-router.post("/customers", async (req, res) => {
+router.post("/customers", validateBody(CreateCustomerBody), async (req, res) => {
   const orgId = req.session.organizationId!;
   const { name, email, phone, billingAddress } = req.body;
-  if (!name) { res.status(400).json({ error: "Name required" }); return; }
+  if (!name.trim()) { res.status(400).json({ error: "Name required" }); return; }
   const [row] = await db.insert(customers).values({
     organizationId: orgId,
     name: name.trim(),
@@ -37,7 +39,7 @@ router.get("/customers/:id", async (req, res) => {
   res.json({ ...row, createdAt: row.createdAt.toISOString() });
 });
 
-router.patch("/customers/:id", async (req, res) => {
+router.patch("/customers/:id", validateBody(UpdateCustomerBody), async (req, res) => {
   const orgId = req.session.organizationId!;
   const { name, email, phone, billingAddress } = req.body;
   const [row] = await db.update(customers)

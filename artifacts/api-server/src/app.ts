@@ -10,6 +10,10 @@ import { HttpError } from "./lib/errors";
 
 const app: Express = express();
 
+// Dev and Replit both put a proxy (Vite, reverse proxy) in front of the API;
+// needed so rate limiting and secure cookies see the real client IP/protocol.
+app.set("trust proxy", 1);
+
 app.use(
   pinoHttp({
     logger,
@@ -29,7 +33,11 @@ app.use(
     },
   }),
 );
-app.use(cors({ origin: true, credentials: true }));
+// Browsers reach the API same-origin through the Vite/production proxy, so no
+// cross-origin access is needed by default. To allow a separate frontend origin,
+// set CORS_ORIGINS to a comma-separated whitelist.
+const corsOrigins = (process.env.CORS_ORIGINS ?? "").split(",").map(s => s.trim()).filter(Boolean);
+app.use(cors({ origin: corsOrigins.length ? corsOrigins : false, credentials: true }));
 app.use(cookieParser());
 app.use(sessionMiddleware);
 app.use(express.json());

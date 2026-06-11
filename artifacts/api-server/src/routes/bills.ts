@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { db, bills, billLineItems, vendors, taxRates, accounts, journalEntries, journalLines } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
+import { CreateBillBody, UpdateBillBody } from "@workspace/api-zod";
 import { requireAuth } from "../lib/session";
 import { postEntry } from "../lib/ledger";
+import { validateBody } from "../lib/validate";
 
 const router = Router();
 
@@ -42,7 +44,7 @@ router.get("/bills", async (req, res) => {
   res.json(rows.map(r => serializeBill(r.bill, r.vendorName)));
 });
 
-router.post("/bills", async (req, res) => {
+router.post("/bills", validateBody(CreateBillBody), async (req, res) => {
   const orgId = req.session.organizationId!;
   const { contactId, number, issueDate, dueDate, lines } = req.body;
   if (!contactId || !number || !issueDate || !dueDate || !lines?.length) {
@@ -100,7 +102,7 @@ router.get("/bills/:id", async (req, res) => {
   res.json({ ...serializeBill(row.bill, row.vendorName), lineItems: lines });
 });
 
-router.patch("/bills/:id", async (req, res) => {
+router.patch("/bills/:id", validateBody(UpdateBillBody), async (req, res) => {
   const orgId = req.session.organizationId!;
   const { contactId, number, issueDate, dueDate, lines } = req.body;
 

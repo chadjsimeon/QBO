@@ -1,7 +1,9 @@
 import { Router } from "express";
 import { db, vendors } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
+import { CreateVendorBody, UpdateVendorBody } from "@workspace/api-zod";
 import { requireAuth } from "../lib/session";
+import { validateBody } from "../lib/validate";
 
 const router = Router();
 
@@ -15,10 +17,10 @@ router.get("/vendors", async (req, res) => {
   res.json(rows.map(r => ({ ...r, createdAt: r.createdAt.toISOString() })));
 });
 
-router.post("/vendors", async (req, res) => {
+router.post("/vendors", validateBody(CreateVendorBody), async (req, res) => {
   const orgId = req.session.organizationId!;
   const { name, email, phone, address } = req.body;
-  if (!name) { res.status(400).json({ error: "Name required" }); return; }
+  if (!name.trim()) { res.status(400).json({ error: "Name required" }); return; }
   const [row] = await db.insert(vendors).values({
     organizationId: orgId,
     name: name.trim(),
@@ -37,7 +39,7 @@ router.get("/vendors/:id", async (req, res) => {
   res.json({ ...row, createdAt: row.createdAt.toISOString() });
 });
 
-router.patch("/vendors/:id", async (req, res) => {
+router.patch("/vendors/:id", validateBody(UpdateVendorBody), async (req, res) => {
   const orgId = req.session.organizationId!;
   const { name, email, phone, address } = req.body;
   const [row] = await db.update(vendors)

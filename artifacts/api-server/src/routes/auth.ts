@@ -2,16 +2,26 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { db, users, orgMemberships, organizations, accounts } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import rateLimit from "express-rate-limit";
+import { LoginBody } from "@workspace/api-zod";
 import { requireAuth } from "../lib/session";
+import { validateBody } from "../lib/validate";
 
 const router = Router();
 
-router.post("/auth/login", async (req, res) => {
-  const { email, password } = req.body as { email?: string; password?: string };
-  if (!email || !password) {
-    res.status(400).json({ error: "Email and password required" });
-    return;
-  }
+// Brute-force / enumeration guard on the credential endpoints only.
+// Disabled under test so integration suites can register freely.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === "test" || process.env.RATE_LIMIT_DISABLED === "1",
+  message: { error: "Too many attempts, please try again later" },
+});
+
+router.post("/auth/login", authLimiter, validateBody(LoginBody), async (req, res) => {
+  const { email, password } = req.body as { email: string; password: string };
 
   const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase())).limit(1);
   if (!user?.passwordHash) {
@@ -58,7 +68,7 @@ router.post("/auth/login", async (req, res) => {
   });
 });
 
-router.post("/auth/register", async (req, res) => {
+router.post("/auth/register", authLimiter, async (req, res) => {
   const { name, email, password, companyName } = req.body as {
     name?: string; email?: string; password?: string; companyName?: string;
   };
