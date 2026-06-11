@@ -60,7 +60,6 @@ router.get("/dashboard/home", async (req, res) => {
   const now = new Date();
 
   // Date ranges
-  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
   const priorMonthStart = new Date(now.getFullYear(), now.getMonth() - 2, 1);

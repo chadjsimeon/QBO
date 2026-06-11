@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import Papa from "papaparse";
 import {
@@ -41,7 +41,6 @@ interface CommitResult {
 }
 
 export default function TrialBalanceImportPage() {
-  const [, navigate] = useLocation();
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
 

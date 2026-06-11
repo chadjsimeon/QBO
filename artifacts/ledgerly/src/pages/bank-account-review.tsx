@@ -121,7 +121,8 @@ export default function BankAccountReviewPage() {
 
   const toggleSelect = (txnId: string) => setSelected(s => {
     const next = new Set(s);
-    next.has(txnId) ? next.delete(txnId) : next.add(txnId);
+    if (next.has(txnId)) next.delete(txnId);
+    else next.add(txnId);
     return next;
   });
   const allSelected = forReview.length > 0 && forReview.every(t => selected.has(t.id));

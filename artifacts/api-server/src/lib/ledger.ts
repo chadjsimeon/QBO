@@ -56,11 +56,12 @@ export async function postEntry(input: PostEntryInput, executor?: DbOrTx) {
   return executor ? write(executor) : db.transaction(write);
 }
 
-export async function findSystemAccount(organizationId: string, role: string, executor: DbOrTx = db) {
+type SystemRole = NonNullable<(typeof accounts.$inferSelect)["systemRole"]>;
+
+export async function findSystemAccount(organizationId: string, role: SystemRole, executor: DbOrTx = db) {
   const results = await executor.select().from(accounts).where(
     and(
       eq(accounts.organizationId, organizationId),
-      // @ts-ignore
       eq(accounts.systemRole, role)
     )
   );

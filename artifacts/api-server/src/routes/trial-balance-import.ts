@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, accounts, trialBalanceImports } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { requireAuth } from "../lib/session";
 import { postEntry, findOrCreateOpeningBalanceEquity, getNetDebitByAccount } from "../lib/ledger";
 

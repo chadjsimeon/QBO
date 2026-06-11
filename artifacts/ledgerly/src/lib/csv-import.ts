@@ -61,7 +61,7 @@ export function parseDate(raw: string | undefined, fmt: DateFormat): Date | null
 
   const iso = () => { const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null; };
   const slash = (dayFirst: boolean) => {
-    const m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+    const m = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})/);
     if (!m) return null;
     let y = Number(m[3]); if (y < 100) y += 2000;
     const first = Number(m[1]), second = Number(m[2]);

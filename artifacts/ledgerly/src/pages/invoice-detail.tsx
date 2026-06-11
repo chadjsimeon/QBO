@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Send, Ban, Trash2, ArrowLeft } from "lucide-react";

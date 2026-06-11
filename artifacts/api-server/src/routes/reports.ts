@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, accounts, invoices, bills, customers, vendors } from "@workspace/db";
-import { eq, inArray, gt } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { requireAuth } from "../lib/session";
 import { getNetDebitByAccount } from "../lib/ledger";
 
@@ -129,10 +129,7 @@ router.get("/reports/ar-aging", async (req, res) => {
   const openInvoices = await db.select({ inv: invoices, customerName: customers.name })
     .from(invoices)
     .leftJoin(customers, eq(invoices.customerId, customers.id))
-    .where(
-      // @ts-ignore
-      (eq(invoices.organizationId, orgId) as any)
-    );
+    .where(eq(invoices.organizationId, orgId));
 
   const eligible = openInvoices.filter(r =>
     ["SENT", "PARTIAL", "OVERDUE"].includes(r.inv.status) && r.inv.balanceCents > 0

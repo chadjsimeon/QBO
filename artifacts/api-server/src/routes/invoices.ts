@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { db, invoices, invoiceLineItems, customers, taxRates, journalEntries, journalLines, accounts } from "@workspace/db";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { CreateInvoiceBody, UpdateInvoiceBody } from "@workspace/api-zod";
 import { requireAuth } from "../lib/session";
-import { findSystemAccount, postEntry } from "../lib/ledger";
+import { postEntry } from "../lib/ledger";
 import { validateBody } from "../lib/validate";
 
 const router = Router();
@@ -163,8 +163,7 @@ router.post("/invoices/:id/issue", async (req, res) => {
     .where(and(
       eq(accounts.organizationId, orgId),
       eq(accounts.type, "INCOME"),
-      // @ts-ignore drizzle typing for ne
-      eq(accounts.subtype as any, "revenue")
+      eq(accounts.subtype, "revenue")
     ));
 
   const inv = await db.transaction(async (tx) => {

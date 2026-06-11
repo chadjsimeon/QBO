@@ -26,7 +26,7 @@ export default function TrialBalancePage() {
   const [asOf, setAsOf] = useState(today);
   const [includeZero, setIncludeZero] = useState(false);
 
-  const { data, isFetching } = useQuery({
+  const { data } = useQuery({
     queryKey: ["trial-balance", asOf, includeZero],
     queryFn: () => apiFetch<TrialBalance>(`/trial-balance?asOf=${asOf}&includeZero=${includeZero ? 1 : 0}`),
   });

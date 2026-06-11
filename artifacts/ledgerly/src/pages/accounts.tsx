@@ -76,11 +76,6 @@ const FINANCIAL_STATEMENT: Record<string, string> = {
   INCOME: "Profit & Loss", EXPENSE: "Profit & Loss",
 };
 
-const TYPE_VARIANT: Record<string, "default" | "secondary" | "outline"> = {
-  ASSET: "default", LIABILITY: "secondary", EQUITY: "outline",
-  INCOME: "default", EXPENSE: "secondary",
-};
-
 function detailLabel(type: string, subtype: string) {
   return DETAIL_TYPES[type]?.find(d => d.value === subtype)?.label ?? subtype;
 }

@@ -45,6 +45,12 @@ jobs:
           pnpm --filter @workspace/api-spec run codegen
           git diff --exit-code lib/api-client-react/src/generated lib/api-zod/src/generated
 
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Format check
+        run: pnpm run format:check
+
       - name: Typecheck
         run: pnpm run typecheck
 

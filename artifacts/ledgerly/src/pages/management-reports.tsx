@@ -1,14 +1,10 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileBarChart } from "lucide-react";
-import { apiFetch, formatCents, formatDate } from "@/lib/api";
+import { apiFetch, formatCents } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 
 interface AgingRow {
   id: string; name: string; totalCents: number;

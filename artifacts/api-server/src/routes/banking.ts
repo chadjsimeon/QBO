@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, bankAccounts, bankTransactions, accounts, invoices, bills, customers, vendors, journalEntries, journalLines } from "@workspace/db";
+import { db, bankAccounts, bankTransactions, accounts, invoices, bills, customers, vendors, journalLines } from "@workspace/db";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { CreateBankAccountBody, ImportBankTransactionsBody, CategorizeBankTransactionBody } from "@workspace/api-zod";
 import { requireAuth } from "../lib/session";

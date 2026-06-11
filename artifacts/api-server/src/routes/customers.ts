@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, customers } from "@workspace/db";
-import { eq, and, ilike, or } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { CreateCustomerBody, UpdateCustomerBody } from "@workspace/api-zod";
 import { requireAuth } from "../lib/session";
 import { validateBody } from "../lib/validate";

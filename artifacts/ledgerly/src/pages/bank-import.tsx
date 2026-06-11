@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import Papa from "papaparse";
 import {
-  ArrowLeft, ArrowRight, UploadCloud, FileText, CheckCircle2, AlertTriangle,
+  ArrowLeft, ArrowRight, UploadCloud, CheckCircle2, AlertTriangle,
   Pencil, Trash2, X, Download, Loader2,
 } from "lucide-react";
 import { apiFetch, formatCents, formatDate, toDateInput } from "@/lib/api";
@@ -156,9 +156,6 @@ export default function BankImportPage() {
       deposits, payments, net: deposits - payments, dupSkip,
     };
   }, [included, skipDuplicates]);
-
-  const selectedAccount = bankAccounts.find((b) => b.id === bankAccountId)
-    ?? (selectedOption.startsWith("coa:") ? unlinkedAccounts.find(u => u.id === selectedOption.slice(4)) : undefined);
 
   function downloadErrorReport() {
     const lines = ["row,reason", ...invalidRows.map((r) => `${r.rowIndex},"${r.errors.join("; ")}"`)];

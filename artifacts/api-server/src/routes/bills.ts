@@ -160,9 +160,6 @@ router.post("/bills/:id/enter", async (req, res) => {
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
   if (existing.status !== "DRAFT") { res.status(400).json({ error: "Only DRAFT bills can be entered" }); return; }
 
-  const lines = await db.select().from(billLineItems)
-    .where(eq(billLineItems.billId, existing.id));
-
   // Find AP account (systemRole = "AP") and first expense account
   const [apAccount] = await db.select().from(accounts)
     .where(and(eq(accounts.organizationId, orgId), eq(accounts.systemRole, "AP")));
@@ -170,8 +167,7 @@ router.post("/bills/:id/enter", async (req, res) => {
     .where(and(
       eq(accounts.organizationId, orgId),
       eq(accounts.type, "EXPENSE"),
-      // @ts-ignore
-      eq(accounts.subtype as any, "expense")
+      eq(accounts.subtype, "expense")
     ));
 
   const bill = await db.transaction(async (tx) => {

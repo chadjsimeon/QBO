@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import {
@@ -83,23 +83,6 @@ function PnlBar({ label, amountCents, maxCents, color }: { label: string; amount
       </div>
     </div>
   );
-}
-
-const customPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, name }: any) => {
-  const RADIAN = Math.PI / 180;
-  const r = innerRadius + (outerRadius - innerRadius) * 0.5;
-  const x = cx + r * Math.cos(-midAngle * RADIAN);
-  const y = cy + r * Math.sin(-midAngle * RADIAN);
-  return (
-    <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={10} fontWeight={600}>
-      {name.length > 10 ? name.slice(0, 8) + "…" : name}
-    </text>
-  );
-};
-
-function formatCentsCompact(c: number) {
-  if (Math.abs(c) >= 100000) return `$${(c / 100000).toFixed(1)}k`;
-  return `$${(c / 100).toFixed(0)}`;
 }
 
 export default function DashboardPage() {

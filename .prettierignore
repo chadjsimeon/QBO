@@ -1,0 +1,7 @@
+dist
+node_modules
+.migration-backup
+backups
+pnpm-lock.yaml
+**/generated/**
+*.md
