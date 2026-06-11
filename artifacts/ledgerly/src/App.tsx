@@ -1,5 +1,7 @@
 import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { setBaseUrl } from "@workspace/api-client-react";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
@@ -50,6 +52,10 @@ import GeneralLedgerPage from "@/pages/general-ledger";
 import TrialBalancePage from "@/pages/trial-balance";
 import TrialBalanceImportPage from "@/pages/trial-balance-import";
 import SearchPage from "@/pages/search";
+
+// Generated client requests are relative ("/api/..."); align them with the
+// same BASE_URL prefix the hand-rolled apiFetch uses for non-root deploys.
+setBaseUrl(import.meta.env.BASE_URL.replace(/\/$/, "") || null);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -327,16 +333,20 @@ function AppRouter() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <AppRouter />
-          </WouterRouter>
-          <Toaster />
-        </TooltipProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <TooltipProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <ErrorBoundary>
+                <AppRouter />
+              </ErrorBoundary>
+            </WouterRouter>
+            <Toaster />
+          </TooltipProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
