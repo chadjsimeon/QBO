@@ -1,4 +1,4 @@
-import { db, journalEntries, journalLines, accounts } from "@workspace/db";
+import { db, journalEntries, journalLines, accounts, type DbOrTx } from "@workspace/db";
 import { eq, and, sql } from "drizzle-orm";
 
 export interface PostLine {
@@ -25,32 +25,39 @@ function validateLines(lines: PostLine[]) {
   if (debits !== credits) throw new Error(`Unbalanced: debits=${debits} credits=${credits}`);
 }
 
-export async function postEntry(input: PostEntryInput) {
+// When called without an executor, the header + lines insert runs in its own
+// transaction so a mid-write failure can't orphan a journal entry. Callers that
+// already hold a transaction pass it in and own commit/rollback.
+export async function postEntry(input: PostEntryInput, executor?: DbOrTx) {
   const lines = input.lines.filter(l => l.debitCents !== 0 || l.creditCents !== 0);
   validateLines(lines);
 
-  const [entry] = await db.insert(journalEntries).values({
-    organizationId: input.organizationId,
-    date: input.date,
-    memo: input.memo,
-    sourceType: input.sourceType,
-    sourceId: input.sourceId,
-    isReversal: input.isReversal ?? false,
-    reversedEntryId: input.reversedEntryId,
-  }).returning();
+  const write = async (tx: DbOrTx) => {
+    const [entry] = await tx.insert(journalEntries).values({
+      organizationId: input.organizationId,
+      date: input.date,
+      memo: input.memo,
+      sourceType: input.sourceType,
+      sourceId: input.sourceId,
+      isReversal: input.isReversal ?? false,
+      reversedEntryId: input.reversedEntryId,
+    }).returning();
 
-  await db.insert(journalLines).values(lines.map(l => ({
-    journalEntryId: entry.id,
-    accountId: l.accountId,
-    debitCents: l.debitCents,
-    creditCents: l.creditCents,
-  })));
+    await tx.insert(journalLines).values(lines.map(l => ({
+      journalEntryId: entry.id,
+      accountId: l.accountId,
+      debitCents: l.debitCents,
+      creditCents: l.creditCents,
+    })));
 
-  return entry;
+    return entry;
+  };
+
+  return executor ? write(executor) : db.transaction(write);
 }
 
-export async function findSystemAccount(organizationId: string, role: string) {
-  const results = await db.select().from(accounts).where(
+export async function findSystemAccount(organizationId: string, role: string, executor: DbOrTx = db) {
+  const results = await executor.select().from(accounts).where(
     and(
       eq(accounts.organizationId, organizationId),
       // @ts-ignore
@@ -63,21 +70,21 @@ export async function findSystemAccount(organizationId: string, role: string) {
 
 // Opening Balance Equity is the conventional offset account for opening balances
 // brought in via a trial balance import. Find it by name, or create it.
-export async function findOrCreateOpeningBalanceEquity(organizationId: string) {
-  const existing = await db.select().from(accounts).where(
+export async function findOrCreateOpeningBalanceEquity(organizationId: string, executor: DbOrTx = db) {
+  const existing = await executor.select().from(accounts).where(
     and(eq(accounts.organizationId, organizationId), eq(accounts.name, "Opening Balance Equity"))
   );
   if (existing[0]) return existing[0];
 
   // Pick a non-colliding code in the equity (3xxx) range.
-  const equityAccts = await db.select().from(accounts).where(
+  const equityAccts = await executor.select().from(accounts).where(
     and(eq(accounts.organizationId, organizationId), eq(accounts.type, "EQUITY"))
   );
   const used = new Set(equityAccts.map(a => a.code));
   let code = "3900";
   for (let i = 3900; i <= 3999 && used.has(code); i++) code = String(i);
 
-  const [created] = await db.insert(accounts).values({
+  const [created] = await executor.insert(accounts).values({
     organizationId,
     code,
     name: "Opening Balance Equity",

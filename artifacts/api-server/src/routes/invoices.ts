@@ -58,29 +58,32 @@ router.post("/invoices", async (req, res) => {
   const taxCents = computed.reduce((s, l) => s + l.taxCents, 0);
   const totalCents = subtotalCents + taxCents;
 
-  const [inv] = await db.insert(invoices).values({
-    organizationId: orgId,
-    customerId: contactId,
-    number,
-    status: "DRAFT",
-    issueDate: new Date(issueDate),
-    dueDate: new Date(dueDate),
-    subtotalCents,
-    taxCents,
-    totalCents,
-    balanceCents: totalCents,
-  }).returning();
+  const inv = await db.transaction(async (tx) => {
+    const [row] = await tx.insert(invoices).values({
+      organizationId: orgId,
+      customerId: contactId,
+      number,
+      status: "DRAFT",
+      issueDate: new Date(issueDate),
+      dueDate: new Date(dueDate),
+      subtotalCents,
+      taxCents,
+      totalCents,
+      balanceCents: totalCents,
+    }).returning();
 
-  await db.insert(invoiceLineItems).values(computed.map((l, i) => ({
-    invoiceId: inv.id,
-    description: l.description,
-    quantity: l.quantity,
-    unitPriceCents: l.unitPriceCents,
-    taxRateId: l.taxRateId || null,
-    accountId: l.accountId,
-    amountCents: l.amountCents,
-    sortOrder: i,
-  })));
+    await tx.insert(invoiceLineItems).values(computed.map((l, i) => ({
+      invoiceId: row.id,
+      description: l.description,
+      quantity: l.quantity,
+      unitPriceCents: l.unitPriceCents,
+      taxRateId: l.taxRateId || null,
+      accountId: l.accountId,
+      amountCents: l.amountCents,
+      sortOrder: i,
+    })));
+    return row;
+  });
 
   res.status(201).json(serializeInvoice(inv));
 });
@@ -115,28 +118,31 @@ router.patch("/invoices/:id", async (req, res) => {
   const taxCents = computed.reduce((s, l) => s + l.taxCents, 0);
   const totalCents = subtotalCents + taxCents;
 
-  const [inv] = await db.update(invoices).set({
-    customerId: contactId,
-    number,
-    issueDate: new Date(issueDate),
-    dueDate: new Date(dueDate),
-    subtotalCents,
-    taxCents,
-    totalCents,
-    balanceCents: totalCents,
-  }).where(eq(invoices.id, req.params.id)).returning();
+  const inv = await db.transaction(async (tx) => {
+    const [row] = await tx.update(invoices).set({
+      customerId: contactId,
+      number,
+      issueDate: new Date(issueDate),
+      dueDate: new Date(dueDate),
+      subtotalCents,
+      taxCents,
+      totalCents,
+      balanceCents: totalCents,
+    }).where(eq(invoices.id, req.params.id)).returning();
 
-  await db.delete(invoiceLineItems).where(eq(invoiceLineItems.invoiceId, req.params.id));
-  await db.insert(invoiceLineItems).values(computed.map((l, i) => ({
-    invoiceId: inv.id,
-    description: l.description,
-    quantity: l.quantity,
-    unitPriceCents: l.unitPriceCents,
-    taxRateId: l.taxRateId || null,
-    accountId: l.accountId,
-    amountCents: l.amountCents,
-    sortOrder: i,
-  })));
+    await tx.delete(invoiceLineItems).where(eq(invoiceLineItems.invoiceId, req.params.id));
+    await tx.insert(invoiceLineItems).values(computed.map((l, i) => ({
+      invoiceId: row.id,
+      description: l.description,
+      quantity: l.quantity,
+      unitPriceCents: l.unitPriceCents,
+      taxRateId: l.taxRateId || null,
+      accountId: l.accountId,
+      amountCents: l.amountCents,
+      sortOrder: i,
+    })));
+    return row;
+  });
 
   res.json(serializeInvoice(inv));
 });
@@ -159,28 +165,31 @@ router.post("/invoices/:id/issue", async (req, res) => {
       eq(accounts.subtype as any, "revenue")
     ));
 
-  if (arAccount && incomeAccount) {
-    const entryLines: Array<{ accountId: string; debitCents: number; creditCents: number }> = [
-      { accountId: arAccount.id, debitCents: existing.totalCents, creditCents: 0 },
-      { accountId: incomeAccount.id, debitCents: 0, creditCents: existing.subtotalCents },
-    ];
-    if (existing.taxCents > 0) {
-      const [taxAccount] = await db.select().from(accounts)
-        .where(and(eq(accounts.organizationId, orgId), eq(accounts.systemRole, "SALES_TAX_PAYABLE")));
-      entryLines.push({ accountId: (taxAccount ?? incomeAccount).id, debitCents: 0, creditCents: existing.taxCents });
+  const inv = await db.transaction(async (tx) => {
+    if (arAccount && incomeAccount) {
+      const entryLines: Array<{ accountId: string; debitCents: number; creditCents: number }> = [
+        { accountId: arAccount.id, debitCents: existing.totalCents, creditCents: 0 },
+        { accountId: incomeAccount.id, debitCents: 0, creditCents: existing.subtotalCents },
+      ];
+      if (existing.taxCents > 0) {
+        const [taxAccount] = await tx.select().from(accounts)
+          .where(and(eq(accounts.organizationId, orgId), eq(accounts.systemRole, "SALES_TAX_PAYABLE")));
+        entryLines.push({ accountId: (taxAccount ?? incomeAccount).id, debitCents: 0, creditCents: existing.taxCents });
+      }
+      await postEntry({
+        organizationId: orgId,
+        date: existing.issueDate,
+        memo: `${existing.number} issued`,
+        sourceType: "INVOICE",
+        sourceId: existing.id,
+        lines: entryLines,
+      }, tx);
     }
-    await postEntry({
-      organizationId: orgId,
-      date: existing.issueDate,
-      memo: `${existing.number} issued`,
-      sourceType: "INVOICE",
-      sourceId: existing.id,
-      lines: entryLines,
-    });
-  }
 
-  const [inv] = await db.update(invoices).set({ status: "SENT" })
-    .where(eq(invoices.id, req.params.id)).returning();
+    const [row] = await tx.update(invoices).set({ status: "SENT" })
+      .where(eq(invoices.id, req.params.id)).returning();
+    return row;
+  });
   res.json(serializeInvoice(inv));
 });
 
@@ -197,37 +206,40 @@ router.post("/invoices/:id/void", async (req, res) => {
     .where(and(eq(invoices.id, req.params.id), eq(invoices.organizationId, orgId)));
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
 
-  if (existing.status !== "VOID") {
-    // Reverse any journal entry
-    const [je] = await db.select().from(journalEntries)
-      .where(and(
-        eq(journalEntries.organizationId, orgId),
-        eq(journalEntries.sourceType, "INVOICE"),
-        eq(journalEntries.sourceId, existing.id)
-      )).limit(1);
+  const inv = await db.transaction(async (tx) => {
+    if (existing.status !== "VOID") {
+      // Reverse any journal entry
+      const [je] = await tx.select().from(journalEntries)
+        .where(and(
+          eq(journalEntries.organizationId, orgId),
+          eq(journalEntries.sourceType, "INVOICE"),
+          eq(journalEntries.sourceId, existing.id)
+        )).limit(1);
 
-    if (je) {
-      const lines = await db.select().from(journalLines)
-        .where(eq(journalLines.journalEntryId, je.id));
+      if (je) {
+        const lines = await tx.select().from(journalLines)
+          .where(eq(journalLines.journalEntryId, je.id));
 
-      await postEntry({
-        organizationId: orgId,
-        date: new Date(),
-        memo: `Void invoice ${existing.number}`,
-        sourceType: "ADJUSTMENT",
-        isReversal: true,
-        reversedEntryId: je.id,
-        lines: lines.map(l => ({
-          accountId: l.accountId,
-          debitCents: l.creditCents,
-          creditCents: l.debitCents,
-        })),
-      });
+        await postEntry({
+          organizationId: orgId,
+          date: new Date(),
+          memo: `Void invoice ${existing.number}`,
+          sourceType: "ADJUSTMENT",
+          isReversal: true,
+          reversedEntryId: je.id,
+          lines: lines.map(l => ({
+            accountId: l.accountId,
+            debitCents: l.creditCents,
+            creditCents: l.debitCents,
+          })),
+        }, tx);
+      }
     }
-  }
 
-  const [inv] = await db.update(invoices).set({ status: "VOID" })
-    .where(eq(invoices.id, req.params.id)).returning();
+    const [row] = await tx.update(invoices).set({ status: "VOID" })
+      .where(eq(invoices.id, req.params.id)).returning();
+    return row;
+  });
   res.json(serializeInvoice(inv));
 });
 

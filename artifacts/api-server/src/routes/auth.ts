@@ -79,23 +79,26 @@ router.post("/auth/register", async (req, res) => {
 
   const passwordHash = await bcrypt.hash(password, 12);
 
-  const [user] = await db.insert(users).values({
+  // User, org, membership, and the seed chart of accounts must land together —
+  // a partial failure would strand a user who can log in but has no org/accounts.
+  await db.transaction(async (tx) => {
+  const [user] = await tx.insert(users).values({
     email: email.toLowerCase(),
     name: name.trim(),
     passwordHash,
   }).returning();
 
-  const [org] = await db.insert(organizations).values({
+  const [org] = await tx.insert(organizations).values({
     name: companyName.trim(),
   }).returning();
 
-  await db.insert(orgMemberships).values({
+  await tx.insert(orgMemberships).values({
     userId: user.id,
     organizationId: org.id,
     role: "OWNER",
   });
 
-  await db.insert(accounts).values([
+  await tx.insert(accounts).values([
     { organizationId: org.id, code: "1000", name: "Assets",                type: "ASSET",     subtype: "header",       sortOrder: 100 },
     { organizationId: org.id, code: "1010", name: "Checking Account",      type: "ASSET",     subtype: "bank",         sortOrder: 110, systemRole: "CASH" as const },
     { organizationId: org.id, code: "1020", name: "Savings Account",       type: "ASSET",     subtype: "bank",         sortOrder: 120 },
@@ -123,6 +126,7 @@ router.post("/auth/register", async (req, res) => {
     { organizationId: org.id, code: "5800", name: "Professional Services", type: "EXPENSE",   subtype: "professional", sortOrder: 580 },
     { organizationId: org.id, code: "5900", name: "Bank Fees",             type: "EXPENSE",   subtype: "bank_fees",    sortOrder: 590 },
   ]);
+  });
 
   res.status(201).json({ ok: true });
 });

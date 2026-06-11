@@ -167,39 +167,43 @@ router.post("/trial-balance/import/commit", async (req, res) => {
 
   const balanced = totalDebitsCents === totalCreditsCents;
 
-  // Record the import first so we can tag the journal entry to it.
+  // Record the import and post the opening-balance entry atomically, so a failed
+  // posting can't leave a COMPLETED import row without its journal entry.
   const importedByName = req.session.name || req.session.email || null;
-  const [imp] = await db.insert(trialBalanceImports).values({
-    organizationId: orgId,
-    effectiveDate: effDate,
-    fileName: fileName || null,
-    totalAccounts: rows.length,
-    accountsCreated, accountsMatched,
-    totalDebitsCents, totalCreditsCents,
-    balanced,
-    status: "COMPLETED",
-    importedByName,
-  }).returning();
-
-  // Plug any residual to Opening Balance Equity so the journal entry balances.
-  let journalEntryId: string | null = null;
-  const residual = lines.reduce((s, l) => s + l.debitCents - l.creditCents, 0);
-  if (residual !== 0) {
-    const obe = await findOrCreateOpeningBalanceEquity(orgId);
-    lines.push({ accountId: obe.id, debitCents: residual < 0 ? -residual : 0, creditCents: residual > 0 ? residual : 0 });
-  }
-  if (lines.length >= 2) {
-    const entry = await postEntry({
+  const { imp, journalEntryId } = await db.transaction(async (tx) => {
+    const [impRow] = await tx.insert(trialBalanceImports).values({
       organizationId: orgId,
-      date: effDate,
-      memo: `Trial balance import${fileName ? ` — ${fileName}` : ""}`,
-      sourceType: "ADJUSTMENT",
-      sourceId: imp.id,
-      lines,
-    });
-    journalEntryId = entry.id;
-    await db.update(trialBalanceImports).set({ journalEntryId }).where(eq(trialBalanceImports.id, imp.id));
-  }
+      effectiveDate: effDate,
+      fileName: fileName || null,
+      totalAccounts: rows.length,
+      accountsCreated, accountsMatched,
+      totalDebitsCents, totalCreditsCents,
+      balanced,
+      status: "COMPLETED",
+      importedByName,
+    }).returning();
+
+    // Plug any residual to Opening Balance Equity so the journal entry balances.
+    let jeId: string | null = null;
+    const residual = lines.reduce((s, l) => s + l.debitCents - l.creditCents, 0);
+    if (residual !== 0) {
+      const obe = await findOrCreateOpeningBalanceEquity(orgId, tx);
+      lines.push({ accountId: obe.id, debitCents: residual < 0 ? -residual : 0, creditCents: residual > 0 ? residual : 0 });
+    }
+    if (lines.length >= 2) {
+      const entry = await postEntry({
+        organizationId: orgId,
+        date: effDate,
+        memo: `Trial balance import${fileName ? ` — ${fileName}` : ""}`,
+        sourceType: "ADJUSTMENT",
+        sourceId: impRow.id,
+        lines,
+      }, tx);
+      jeId = entry.id;
+      await tx.update(trialBalanceImports).set({ journalEntryId: jeId }).where(eq(trialBalanceImports.id, impRow.id));
+    }
+    return { imp: impRow, journalEntryId: jeId };
+  });
 
   res.status(201).json({
     importId: imp.id,

@@ -38,30 +38,32 @@ async function categorizeTxn(
   const moneyIn = txn.amountCents > 0;
   const magnitude = Math.abs(txn.amountCents);
 
-  const je = await postEntry({
-    organizationId: orgId,
-    date: txn.date,
-    memo: memo || txn.descriptionRaw,
-    sourceType: "BANK",
-    sourceId: txn.id,
-    lines: moneyIn ? [
-      { accountId: ba.accountId, debitCents: magnitude, creditCents: 0 },
-      { accountId, debitCents: 0, creditCents: magnitude },
-    ] : [
-      { accountId, debitCents: magnitude, creditCents: 0 },
-      { accountId: ba.accountId, debitCents: 0, creditCents: magnitude },
-    ],
+  return db.transaction(async (tx) => {
+    const je = await postEntry({
+      organizationId: orgId,
+      date: txn.date,
+      memo: memo || txn.descriptionRaw,
+      sourceType: "BANK",
+      sourceId: txn.id,
+      lines: moneyIn ? [
+        { accountId: ba.accountId, debitCents: magnitude, creditCents: 0 },
+        { accountId, debitCents: 0, creditCents: magnitude },
+      ] : [
+        { accountId, debitCents: magnitude, creditCents: 0 },
+        { accountId: ba.accountId, debitCents: 0, creditCents: magnitude },
+      ],
+    }, tx);
+
+    const [updated] = await tx.update(bankTransactions).set({
+      status: "CATEGORIZED",
+      matchType: "ADDED",
+      journalEntryId: je.id,
+      categorizedAccountId: accountId,
+      memo: memo || null,
+    }).where(eq(bankTransactions.id, txn.id)).returning();
+
+    return updated;
   });
-
-  const [updated] = await db.update(bankTransactions).set({
-    status: "CATEGORIZED",
-    matchType: "ADDED",
-    journalEntryId: je.id,
-    categorizedAccountId: accountId,
-    memo: memo || null,
-  }).where(eq(bankTransactions.id, txn.id)).returning();
-
-  return updated;
 }
 
 router.get("/bank-accounts", async (req, res) => {
@@ -274,53 +276,56 @@ router.post("/bank-transactions/:id/undo", async (req, res) => {
     .where(and(eq(bankTransactions.id, req.params.id), eq(bankTransactions.organizationId, orgId)));
   if (!txn) { res.status(404).json({ error: "Not found" }); return; }
 
-  if (txn.journalEntryId) {
-    const jeLines = await db.select().from(journalLines)
-      .where(eq(journalLines.journalEntryId, txn.journalEntryId));
-    if (jeLines.length > 0) {
-      await postEntry({
-        organizationId: orgId,
-        date: new Date(),
-        memo: "Reversal of bank categorization",
-        sourceType: "ADJUSTMENT",
-        isReversal: true,
-        reversedEntryId: txn.journalEntryId,
-        lines: jeLines.map(l => ({ accountId: l.accountId, debitCents: l.creditCents, creditCents: l.debitCents })),
-      });
+  const updated = await db.transaction(async (tx) => {
+    if (txn.journalEntryId) {
+      const jeLines = await tx.select().from(journalLines)
+        .where(eq(journalLines.journalEntryId, txn.journalEntryId));
+      if (jeLines.length > 0) {
+        await postEntry({
+          organizationId: orgId,
+          date: new Date(),
+          memo: "Reversal of bank categorization",
+          sourceType: "ADJUSTMENT",
+          isReversal: true,
+          reversedEntryId: txn.journalEntryId,
+          lines: jeLines.map(l => ({ accountId: l.accountId, debitCents: l.creditCents, creditCents: l.debitCents })),
+        }, tx);
+      }
     }
-  }
 
-  // Restore a matched document balance (mirror of the payment-vs-document logic).
-  if (txn.matchedInvoiceId) {
-    const [inv] = await db.select().from(invoices)
-      .where(and(eq(invoices.id, txn.matchedInvoiceId), eq(invoices.organizationId, orgId)));
-    if (inv) {
-      const restored = inv.balanceCents + Math.abs(txn.amountCents);
-      await db.update(invoices).set({
-        balanceCents: restored,
-        status: restored >= inv.totalCents ? "SENT" : "PARTIAL",
-      }).where(eq(invoices.id, txn.matchedInvoiceId));
+    // Restore a matched document balance (mirror of the payment-vs-document logic).
+    if (txn.matchedInvoiceId) {
+      const [inv] = await tx.select().from(invoices)
+        .where(and(eq(invoices.id, txn.matchedInvoiceId), eq(invoices.organizationId, orgId)));
+      if (inv) {
+        const restored = inv.balanceCents + Math.abs(txn.amountCents);
+        await tx.update(invoices).set({
+          balanceCents: restored,
+          status: restored >= inv.totalCents ? "SENT" : "PARTIAL",
+        }).where(eq(invoices.id, txn.matchedInvoiceId));
+      }
+    } else if (txn.matchedBillId) {
+      const [bill] = await tx.select().from(bills)
+        .where(and(eq(bills.id, txn.matchedBillId), eq(bills.organizationId, orgId)));
+      if (bill) {
+        const restored = bill.balanceCents + Math.abs(txn.amountCents);
+        await tx.update(bills).set({
+          balanceCents: restored,
+          status: restored >= bill.totalCents ? "OPEN" : "PARTIAL",
+        }).where(eq(bills.id, txn.matchedBillId));
+      }
     }
-  } else if (txn.matchedBillId) {
-    const [bill] = await db.select().from(bills)
-      .where(and(eq(bills.id, txn.matchedBillId), eq(bills.organizationId, orgId)));
-    if (bill) {
-      const restored = bill.balanceCents + Math.abs(txn.amountCents);
-      await db.update(bills).set({
-        balanceCents: restored,
-        status: restored >= bill.totalCents ? "OPEN" : "PARTIAL",
-      }).where(eq(bills.id, txn.matchedBillId));
-    }
-  }
 
-  const [updated] = await db.update(bankTransactions).set({
-    status: "FOR_REVIEW",
-    matchType: null,
-    journalEntryId: null,
-    categorizedAccountId: null,
-    matchedInvoiceId: null,
-    matchedBillId: null,
-  }).where(eq(bankTransactions.id, req.params.id)).returning();
+    const [row] = await tx.update(bankTransactions).set({
+      status: "FOR_REVIEW",
+      matchType: null,
+      journalEntryId: null,
+      categorizedAccountId: null,
+      matchedInvoiceId: null,
+      matchedBillId: null,
+    }).where(eq(bankTransactions.id, req.params.id)).returning();
+    return row;
+  });
   res.json(serializeTxn(updated));
 });
 
@@ -367,41 +372,44 @@ router.post("/bank-transactions/:id/match", async (req, res) => {
   if (magnitude > currentBalance) { res.status(409).json({ error: `Amount exceeds the ${noun}'s open balance` }); return; }
 
   // Deposit/invoice → Dr bank / Cr AR. Payment/bill → Dr AP / Cr bank.
-  const je = await postEntry({
-    organizationId: orgId,
-    date: txn.date,
-    memo: txn.descriptionRaw,
-    sourceType: "BANK",
-    sourceId: txn.id,
-    lines: kind === "invoice" ? [
-      { accountId: ba.accountId, debitCents: magnitude, creditCents: 0 },
-      { accountId: systemAccount.id, debitCents: 0, creditCents: magnitude },
-    ] : [
-      { accountId: systemAccount.id, debitCents: magnitude, creditCents: 0 },
-      { accountId: ba.accountId, debitCents: 0, creditCents: magnitude },
-    ],
+  const updated = await db.transaction(async (tx) => {
+    const je = await postEntry({
+      organizationId: orgId,
+      date: txn.date,
+      memo: txn.descriptionRaw,
+      sourceType: "BANK",
+      sourceId: txn.id,
+      lines: kind === "invoice" ? [
+        { accountId: ba.accountId, debitCents: magnitude, creditCents: 0 },
+        { accountId: systemAccount.id, debitCents: 0, creditCents: magnitude },
+      ] : [
+        { accountId: systemAccount.id, debitCents: magnitude, creditCents: 0 },
+        { accountId: ba.accountId, debitCents: 0, creditCents: magnitude },
+      ],
+    }, tx);
+
+    const newBalance = currentBalance - magnitude; // magnitude ≤ currentBalance guaranteed above
+    if (kind === "invoice") {
+      await tx.update(invoices).set({
+        balanceCents: newBalance,
+        status: newBalance <= 0 ? "PAID" : "PARTIAL",
+      }).where(eq(invoices.id, documentId));
+    } else {
+      await tx.update(bills).set({
+        balanceCents: newBalance,
+        status: newBalance <= 0 ? "PAID" : "PARTIAL",
+      }).where(eq(bills.id, documentId));
+    }
+
+    const [row] = await tx.update(bankTransactions).set({
+      status: "CATEGORIZED",
+      matchType: "MATCHED",
+      journalEntryId: je.id,
+      matchedInvoiceId: kind === "invoice" ? documentId : null,
+      matchedBillId: kind === "bill" ? documentId : null,
+    }).where(eq(bankTransactions.id, req.params.id)).returning();
+    return row;
   });
-
-  const newBalance = currentBalance - magnitude; // magnitude ≤ currentBalance guaranteed above
-  if (kind === "invoice") {
-    await db.update(invoices).set({
-      balanceCents: newBalance,
-      status: newBalance <= 0 ? "PAID" : "PARTIAL",
-    }).where(eq(invoices.id, documentId));
-  } else {
-    await db.update(bills).set({
-      balanceCents: newBalance,
-      status: newBalance <= 0 ? "PAID" : "PARTIAL",
-    }).where(eq(bills.id, documentId));
-  }
-
-  const [updated] = await db.update(bankTransactions).set({
-    status: "CATEGORIZED",
-    matchType: "MATCHED",
-    journalEntryId: je.id,
-    matchedInvoiceId: kind === "invoice" ? documentId : null,
-    matchedBillId: kind === "bill" ? documentId : null,
-  }).where(eq(bankTransactions.id, req.params.id)).returning();
 
   res.json(serializeTxn(updated));
 });

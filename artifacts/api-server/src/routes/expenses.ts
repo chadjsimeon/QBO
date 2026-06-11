@@ -54,30 +54,6 @@ router.post("/expenses", async (req, res) => {
   const { subtotalCents, taxCents, totalCents } = sumTotals(computed);
   if (totalCents <= 0) { res.status(400).json({ error: "Total must be greater than zero" }); return; }
 
-  const [exp] = await db.insert(expenses).values({
-    organizationId: orgId,
-    vendorId: vendorId || null,
-    paymentAccountId,
-    number,
-    refNumber: refNumber || null,
-    method: method || "BANK_TRANSFER",
-    isCredit: !!isCredit,
-    date: new Date(date),
-    memo: memo || null,
-    subtotalCents, taxCents, totalCents,
-  }).returning();
-
-  await db.insert(expenseLineItems).values(computed.map((l, i) => ({
-    expenseId: exp.id,
-    description: l.description,
-    quantity: l.quantity,
-    unitPriceCents: l.unitPriceCents,
-    taxRateId: l.taxRateId || null,
-    accountId: l.accountId,
-    amountCents: l.amountCents,
-    sortOrder: i,
-  })));
-
   // Expense: debit expense lines (+tax), credit the paid-from account.
   // Credit card credit (isCredit): the reverse — debit the card, credit expense lines (+tax).
   let taxAccountId: string | null = null;
@@ -94,17 +70,45 @@ router.post("/expenses", async (req, res) => {
     entryLines.push({ accountId: paymentAccountId, debitCents: 0, creditCents: totalCents });
   }
 
-  const entry = await postEntry({
-    organizationId: orgId,
-    date: new Date(date),
-    memo: memo || `${isCredit ? "Credit card credit" : "Expense"} ${number}`,
-    sourceType: isCredit ? "CC_CREDIT" : "EXPENSE",
-    sourceId: exp.id,
-    lines: entryLines,
-  });
-  await db.update(expenses).set({ journalEntryId: entry.id }).where(eq(expenses.id, exp.id));
+  const exp = await db.transaction(async (tx) => {
+    const [row] = await tx.insert(expenses).values({
+      organizationId: orgId,
+      vendorId: vendorId || null,
+      paymentAccountId,
+      number,
+      refNumber: refNumber || null,
+      method: method || "BANK_TRANSFER",
+      isCredit: !!isCredit,
+      date: new Date(date),
+      memo: memo || null,
+      subtotalCents, taxCents, totalCents,
+    }).returning();
 
-  res.status(201).json(serialize({ ...exp, journalEntryId: entry.id }));
+    await tx.insert(expenseLineItems).values(computed.map((l, i) => ({
+      expenseId: row.id,
+      description: l.description,
+      quantity: l.quantity,
+      unitPriceCents: l.unitPriceCents,
+      taxRateId: l.taxRateId || null,
+      accountId: l.accountId,
+      amountCents: l.amountCents,
+      sortOrder: i,
+    })));
+
+    const entry = await postEntry({
+      organizationId: orgId,
+      date: new Date(date),
+      memo: memo || `${isCredit ? "Credit card credit" : "Expense"} ${number}`,
+      sourceType: isCredit ? "CC_CREDIT" : "EXPENSE",
+      sourceId: row.id,
+      lines: entryLines,
+    }, tx);
+    await tx.update(expenses).set({ journalEntryId: entry.id }).where(eq(expenses.id, row.id));
+
+    return { ...row, journalEntryId: entry.id };
+  });
+
+  res.status(201).json(serialize(exp));
 });
 
 router.post("/expenses/:id/void", async (req, res) => {

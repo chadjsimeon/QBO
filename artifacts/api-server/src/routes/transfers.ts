@@ -37,25 +37,28 @@ router.post("/transfers", async (req, res) => {
   if (accts.length !== 2) { res.status(400).json({ error: "Invalid account selection." }); return; }
 
   try {
-    const entry = await postEntry({
-      organizationId: orgId,
-      date: new Date(date),
-      memo: memo || "Transfer",
-      sourceType: "TRANSFER",
-      lines: [
-        { accountId: toAccountId, debitCents: amt, creditCents: 0 },
-        { accountId: fromAccountId, debitCents: 0, creditCents: amt },
-      ],
+    const t = await db.transaction(async (tx) => {
+      const entry = await postEntry({
+        organizationId: orgId,
+        date: new Date(date),
+        memo: memo || "Transfer",
+        sourceType: "TRANSFER",
+        lines: [
+          { accountId: toAccountId, debitCents: amt, creditCents: 0 },
+          { accountId: fromAccountId, debitCents: 0, creditCents: amt },
+        ],
+      }, tx);
+      const [row] = await tx.insert(transfers).values({
+        organizationId: orgId,
+        date: new Date(date),
+        fromAccountId,
+        toAccountId,
+        amountCents: amt,
+        memo: memo || null,
+        journalEntryId: entry.id,
+      }).returning();
+      return row;
     });
-    const [t] = await db.insert(transfers).values({
-      organizationId: orgId,
-      date: new Date(date),
-      fromAccountId,
-      toAccountId,
-      amountCents: amt,
-      memo: memo || null,
-      journalEntryId: entry.id,
-    }).returning();
     res.status(201).json({ ...t, date: t.date.toISOString(), createdAt: t.createdAt.toISOString() });
   } catch (e: any) {
     res.status(400).json({ error: e.message ?? "Could not record transfer" });

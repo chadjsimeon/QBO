@@ -55,29 +55,32 @@ router.post("/bills", async (req, res) => {
   const taxCents = computed.reduce((s, l) => s + l.taxCents, 0);
   const totalCents = subtotalCents + taxCents;
 
-  const [bill] = await db.insert(bills).values({
-    organizationId: orgId,
-    vendorId: contactId,
-    number,
-    status: "DRAFT",
-    issueDate: new Date(issueDate),
-    dueDate: new Date(dueDate),
-    subtotalCents,
-    taxCents,
-    totalCents,
-    balanceCents: totalCents,
-  }).returning();
+  const bill = await db.transaction(async (tx) => {
+    const [row] = await tx.insert(bills).values({
+      organizationId: orgId,
+      vendorId: contactId,
+      number,
+      status: "DRAFT",
+      issueDate: new Date(issueDate),
+      dueDate: new Date(dueDate),
+      subtotalCents,
+      taxCents,
+      totalCents,
+      balanceCents: totalCents,
+    }).returning();
 
-  await db.insert(billLineItems).values(computed.map((l, i) => ({
-    billId: bill.id,
-    description: l.description,
-    quantity: l.quantity,
-    unitPriceCents: l.unitPriceCents,
-    taxRateId: l.taxRateId || null,
-    accountId: l.accountId,
-    amountCents: l.amountCents,
-    sortOrder: i,
-  })));
+    await tx.insert(billLineItems).values(computed.map((l, i) => ({
+      billId: row.id,
+      description: l.description,
+      quantity: l.quantity,
+      unitPriceCents: l.unitPriceCents,
+      taxRateId: l.taxRateId || null,
+      accountId: l.accountId,
+      amountCents: l.amountCents,
+      sortOrder: i,
+    })));
+    return row;
+  });
 
   res.status(201).json(serializeBill(bill));
 });
@@ -112,28 +115,31 @@ router.patch("/bills/:id", async (req, res) => {
   const taxCents = computed.reduce((s, l) => s + l.taxCents, 0);
   const totalCents = subtotalCents + taxCents;
 
-  const [bill] = await db.update(bills).set({
-    vendorId: contactId,
-    number,
-    issueDate: new Date(issueDate),
-    dueDate: new Date(dueDate),
-    subtotalCents,
-    taxCents,
-    totalCents,
-    balanceCents: totalCents,
-  }).where(eq(bills.id, req.params.id)).returning();
+  const bill = await db.transaction(async (tx) => {
+    const [row] = await tx.update(bills).set({
+      vendorId: contactId,
+      number,
+      issueDate: new Date(issueDate),
+      dueDate: new Date(dueDate),
+      subtotalCents,
+      taxCents,
+      totalCents,
+      balanceCents: totalCents,
+    }).where(eq(bills.id, req.params.id)).returning();
 
-  await db.delete(billLineItems).where(eq(billLineItems.billId, req.params.id));
-  await db.insert(billLineItems).values(computed.map((l, i) => ({
-    billId: bill.id,
-    description: l.description,
-    quantity: l.quantity,
-    unitPriceCents: l.unitPriceCents,
-    taxRateId: l.taxRateId || null,
-    accountId: l.accountId,
-    amountCents: l.amountCents,
-    sortOrder: i,
-  })));
+    await tx.delete(billLineItems).where(eq(billLineItems.billId, req.params.id));
+    await tx.insert(billLineItems).values(computed.map((l, i) => ({
+      billId: row.id,
+      description: l.description,
+      quantity: l.quantity,
+      unitPriceCents: l.unitPriceCents,
+      taxRateId: l.taxRateId || null,
+      accountId: l.accountId,
+      amountCents: l.amountCents,
+      sortOrder: i,
+    })));
+    return row;
+  });
 
   res.json(serializeBill(bill));
 });
@@ -166,28 +172,31 @@ router.post("/bills/:id/enter", async (req, res) => {
       eq(accounts.subtype as any, "expense")
     ));
 
-  if (apAccount && expenseAccount) {
-    const entryLines: Array<{ accountId: string; debitCents: number; creditCents: number }> = [
-      { accountId: expenseAccount.id, debitCents: existing.subtotalCents, creditCents: 0 },
-      { accountId: apAccount.id, debitCents: 0, creditCents: existing.totalCents },
-    ];
-    if (existing.taxCents > 0) {
-      const [taxAccount] = await db.select().from(accounts)
-        .where(and(eq(accounts.organizationId, orgId), eq(accounts.systemRole, "SALES_TAX_PAYABLE")));
-      entryLines.push({ accountId: (taxAccount ?? expenseAccount).id, debitCents: existing.taxCents, creditCents: 0 });
+  const bill = await db.transaction(async (tx) => {
+    if (apAccount && expenseAccount) {
+      const entryLines: Array<{ accountId: string; debitCents: number; creditCents: number }> = [
+        { accountId: expenseAccount.id, debitCents: existing.subtotalCents, creditCents: 0 },
+        { accountId: apAccount.id, debitCents: 0, creditCents: existing.totalCents },
+      ];
+      if (existing.taxCents > 0) {
+        const [taxAccount] = await tx.select().from(accounts)
+          .where(and(eq(accounts.organizationId, orgId), eq(accounts.systemRole, "SALES_TAX_PAYABLE")));
+        entryLines.push({ accountId: (taxAccount ?? expenseAccount).id, debitCents: existing.taxCents, creditCents: 0 });
+      }
+      await postEntry({
+        organizationId: orgId,
+        date: existing.issueDate,
+        memo: `${existing.number} entered`,
+        sourceType: "BILL",
+        sourceId: existing.id,
+        lines: entryLines,
+      }, tx);
     }
-    await postEntry({
-      organizationId: orgId,
-      date: existing.issueDate,
-      memo: `${existing.number} entered`,
-      sourceType: "BILL",
-      sourceId: existing.id,
-      lines: entryLines,
-    });
-  }
 
-  const [bill] = await db.update(bills).set({ status: "OPEN" })
-    .where(eq(bills.id, req.params.id)).returning();
+    const [row] = await tx.update(bills).set({ status: "OPEN" })
+      .where(eq(bills.id, req.params.id)).returning();
+    return row;
+  });
   res.json(serializeBill(bill));
 });
 
@@ -197,32 +206,35 @@ router.post("/bills/:id/void", async (req, res) => {
     .where(and(eq(bills.id, req.params.id), eq(bills.organizationId, orgId)));
   if (!existing) { res.status(404).json({ error: "Not found" }); return; }
 
-  if (existing.status !== "VOID" && existing.status !== "DRAFT") {
-    // Reverse the journal entry if one exists
-    const [je] = await db.select().from(journalEntries)
-      .where(and(
-        eq(journalEntries.organizationId, orgId),
-        eq(journalEntries.sourceType, "BILL"),
-        eq(journalEntries.sourceId, existing.id)
-      )).limit(1);
+  const bill = await db.transaction(async (tx) => {
+    if (existing.status !== "VOID" && existing.status !== "DRAFT") {
+      // Reverse the journal entry if one exists
+      const [je] = await tx.select().from(journalEntries)
+        .where(and(
+          eq(journalEntries.organizationId, orgId),
+          eq(journalEntries.sourceType, "BILL"),
+          eq(journalEntries.sourceId, existing.id)
+        )).limit(1);
 
-    if (je) {
-      const jeLines = await db.select().from(journalLines)
-        .where(eq(journalLines.journalEntryId, je.id));
-      await postEntry({
-        organizationId: orgId,
-        date: new Date(),
-        memo: `Void bill ${existing.number}`,
-        sourceType: "ADJUSTMENT",
-        isReversal: true,
-        reversedEntryId: je.id,
-        lines: jeLines.map(l => ({ accountId: l.accountId, debitCents: l.creditCents, creditCents: l.debitCents })),
-      });
+      if (je) {
+        const jeLines = await tx.select().from(journalLines)
+          .where(eq(journalLines.journalEntryId, je.id));
+        await postEntry({
+          organizationId: orgId,
+          date: new Date(),
+          memo: `Void bill ${existing.number}`,
+          sourceType: "ADJUSTMENT",
+          isReversal: true,
+          reversedEntryId: je.id,
+          lines: jeLines.map(l => ({ accountId: l.accountId, debitCents: l.creditCents, creditCents: l.debitCents })),
+        }, tx);
+      }
     }
-  }
 
-  const [bill] = await db.update(bills).set({ status: "VOID", balanceCents: 0 })
-    .where(eq(bills.id, req.params.id)).returning();
+    const [row] = await tx.update(bills).set({ status: "VOID", balanceCents: 0 })
+      .where(eq(bills.id, req.params.id)).returning();
+    return row;
+  });
   res.json(serializeBill(bill));
 });
 

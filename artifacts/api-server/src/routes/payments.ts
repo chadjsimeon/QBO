@@ -51,84 +51,88 @@ router.post("/payments", async (req, res) => {
   const [apAccount] = await db.select().from(accounts)
     .where(and(eq(accounts.organizationId, orgId), eq(accounts.systemRole, "AP")));
 
-  const [payment] = await db.insert(payments).values({
-    organizationId: orgId,
-    direction,
-    customerId: customerId || null,
-    vendorId: vendorId || null,
-    amountCents,
-    date: new Date(date),
-    method: method || "BANK_TRANSFER",
-    memo: memo || null,
-  }).returning();
+  const payment = await db.transaction(async (tx) => {
+    const [row] = await tx.insert(payments).values({
+      organizationId: orgId,
+      direction,
+      customerId: customerId || null,
+      vendorId: vendorId || null,
+      amountCents,
+      date: new Date(date),
+      method: method || "BANK_TRANSFER",
+      memo: memo || null,
+    }).returning();
 
-  const allocs: Array<{ invoiceId?: string; billId?: string; amountCents: number }> =
-    Array.isArray(allocations) ? allocations : [];
+    const allocs: Array<{ invoiceId?: string; billId?: string; amountCents: number }> =
+      Array.isArray(allocations) ? allocations : [];
 
-  if (allocs.length > 0) {
-    await db.insert(paymentAllocations).values(
-      allocs.map(a => ({
-        paymentId: payment.id,
-        invoiceId: a.invoiceId || null,
-        billId: a.billId || null,
-        amountCents: a.amountCents,
-      }))
-    );
+    if (allocs.length > 0) {
+      await tx.insert(paymentAllocations).values(
+        allocs.map(a => ({
+          paymentId: row.id,
+          invoiceId: a.invoiceId || null,
+          billId: a.billId || null,
+          amountCents: a.amountCents,
+        }))
+      );
 
-    if (direction === "RECEIVED") {
-      for (const a of allocs) {
-        if (!a.invoiceId) continue;
-        const [inv] = await db.select().from(invoices)
-          .where(and(eq(invoices.id, a.invoiceId), eq(invoices.organizationId, orgId)));
-        if (!inv) continue;
-        const newBalance = Math.max(0, inv.balanceCents - a.amountCents);
-        await db.update(invoices).set({
-          balanceCents: newBalance,
-          status: newBalance <= 0 ? "PAID" : "PARTIAL",
-        }).where(eq(invoices.id, a.invoiceId));
-      }
-    } else {
-      for (const a of allocs) {
-        if (!a.billId) continue;
-        const [bill] = await db.select().from(bills)
-          .where(and(eq(bills.id, a.billId), eq(bills.organizationId, orgId)));
-        if (!bill) continue;
-        const newBalance = Math.max(0, bill.balanceCents - a.amountCents);
-        await db.update(bills).set({
-          balanceCents: newBalance,
-          status: newBalance <= 0 ? "PAID" : "PARTIAL",
-        }).where(eq(bills.id, a.billId));
+      if (direction === "RECEIVED") {
+        for (const a of allocs) {
+          if (!a.invoiceId) continue;
+          const [inv] = await tx.select().from(invoices)
+            .where(and(eq(invoices.id, a.invoiceId), eq(invoices.organizationId, orgId)));
+          if (!inv) continue;
+          const newBalance = Math.max(0, inv.balanceCents - a.amountCents);
+          await tx.update(invoices).set({
+            balanceCents: newBalance,
+            status: newBalance <= 0 ? "PAID" : "PARTIAL",
+          }).where(eq(invoices.id, a.invoiceId));
+        }
+      } else {
+        for (const a of allocs) {
+          if (!a.billId) continue;
+          const [bill] = await tx.select().from(bills)
+            .where(and(eq(bills.id, a.billId), eq(bills.organizationId, orgId)));
+          if (!bill) continue;
+          const newBalance = Math.max(0, bill.balanceCents - a.amountCents);
+          await tx.update(bills).set({
+            balanceCents: newBalance,
+            status: newBalance <= 0 ? "PAID" : "PARTIAL",
+          }).where(eq(bills.id, a.billId));
+        }
       }
     }
-  }
 
-  if (cashAccount) {
-    if (direction === "RECEIVED" && arAccount) {
-      await postEntry({
-        organizationId: orgId,
-        date: new Date(date),
-        memo: memo || "Payment received",
-        sourceType: "PAYMENT",
-        sourceId: payment.id,
-        lines: [
-          { accountId: cashAccount.id, debitCents: amountCents, creditCents: 0 },
-          { accountId: arAccount.id, debitCents: 0, creditCents: amountCents },
-        ],
-      });
-    } else if (direction === "SENT" && apAccount) {
-      await postEntry({
-        organizationId: orgId,
-        date: new Date(date),
-        memo: memo || "Payment sent",
-        sourceType: "PAYMENT",
-        sourceId: payment.id,
-        lines: [
-          { accountId: apAccount.id, debitCents: amountCents, creditCents: 0 },
-          { accountId: cashAccount.id, debitCents: 0, creditCents: amountCents },
-        ],
-      });
+    if (cashAccount) {
+      if (direction === "RECEIVED" && arAccount) {
+        await postEntry({
+          organizationId: orgId,
+          date: new Date(date),
+          memo: memo || "Payment received",
+          sourceType: "PAYMENT",
+          sourceId: row.id,
+          lines: [
+            { accountId: cashAccount.id, debitCents: amountCents, creditCents: 0 },
+            { accountId: arAccount.id, debitCents: 0, creditCents: amountCents },
+          ],
+        }, tx);
+      } else if (direction === "SENT" && apAccount) {
+        await postEntry({
+          organizationId: orgId,
+          date: new Date(date),
+          memo: memo || "Payment sent",
+          sourceType: "PAYMENT",
+          sourceId: row.id,
+          lines: [
+            { accountId: apAccount.id, debitCents: amountCents, creditCents: 0 },
+            { accountId: cashAccount.id, debitCents: 0, creditCents: amountCents },
+          ],
+        }, tx);
+      }
     }
-  }
+
+    return row;
+  });
 
   res.status(201).json(serialize(payment));
 });
@@ -170,46 +174,48 @@ router.delete("/payments/:id", async (req, res) => {
       eq(journalEntries.sourceId, req.params.id)
     )).limit(1);
 
-  if (je) {
-    const jeLines = await db.select().from(journalLines)
-      .where(eq(journalLines.journalEntryId, je.id));
-    await postEntry({
-      organizationId: orgId,
-      date: new Date(),
-      memo: "Reversal of payment",
-      sourceType: "ADJUSTMENT",
-      isReversal: true,
-      reversedEntryId: je.id,
-      lines: jeLines.map(l => ({ accountId: l.accountId, debitCents: l.creditCents, creditCents: l.debitCents })),
-    });
-  }
+  await db.transaction(async (tx) => {
+    if (je) {
+      const jeLines = await tx.select().from(journalLines)
+        .where(eq(journalLines.journalEntryId, je.id));
+      await postEntry({
+        organizationId: orgId,
+        date: new Date(),
+        memo: "Reversal of payment",
+        sourceType: "ADJUSTMENT",
+        isReversal: true,
+        reversedEntryId: je.id,
+        lines: jeLines.map(l => ({ accountId: l.accountId, debitCents: l.creditCents, creditCents: l.debitCents })),
+      }, tx);
+    }
 
-  for (const a of allocs) {
-    if (a.invoiceId) {
-      const [inv] = await db.select().from(invoices)
-        .where(and(eq(invoices.id, a.invoiceId), eq(invoices.organizationId, orgId)));
-      if (inv) {
-        const restored = inv.balanceCents + a.amountCents;
-        await db.update(invoices).set({
-          balanceCents: restored,
-          status: restored >= inv.totalCents ? "SENT" : "PARTIAL",
-        }).where(eq(invoices.id, a.invoiceId));
-      }
-    } else if (a.billId) {
-      const [bill] = await db.select().from(bills)
-        .where(and(eq(bills.id, a.billId), eq(bills.organizationId, orgId)));
-      if (bill) {
-        const restored = bill.balanceCents + a.amountCents;
-        await db.update(bills).set({
-          balanceCents: restored,
-          status: restored >= bill.totalCents ? "OPEN" : "PARTIAL",
-        }).where(eq(bills.id, a.billId));
+    for (const a of allocs) {
+      if (a.invoiceId) {
+        const [inv] = await tx.select().from(invoices)
+          .where(and(eq(invoices.id, a.invoiceId), eq(invoices.organizationId, orgId)));
+        if (inv) {
+          const restored = inv.balanceCents + a.amountCents;
+          await tx.update(invoices).set({
+            balanceCents: restored,
+            status: restored >= inv.totalCents ? "SENT" : "PARTIAL",
+          }).where(eq(invoices.id, a.invoiceId));
+        }
+      } else if (a.billId) {
+        const [bill] = await tx.select().from(bills)
+          .where(and(eq(bills.id, a.billId), eq(bills.organizationId, orgId)));
+        if (bill) {
+          const restored = bill.balanceCents + a.amountCents;
+          await tx.update(bills).set({
+            balanceCents: restored,
+            status: restored >= bill.totalCents ? "OPEN" : "PARTIAL",
+          }).where(eq(bills.id, a.billId));
+        }
       }
     }
-  }
 
-  await db.delete(payments)
-    .where(and(eq(payments.id, req.params.id), eq(payments.organizationId, orgId)));
+    await tx.delete(payments)
+      .where(and(eq(payments.id, req.params.id), eq(payments.organizationId, orgId)));
+  });
   res.status(204).send();
 });
 

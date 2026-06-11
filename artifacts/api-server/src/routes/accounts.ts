@@ -43,57 +43,61 @@ router.post("/accounts", async (req, res) => {
   const cashFlow: CashFlowCategory = CASH_FLOW_CATEGORIES.includes(cashFlowCategory) ? cashFlowCategory : "NONE";
 
   try {
-    const [row] = await db.insert(accounts).values({
-      organizationId: orgId,
-      code: code.trim(),
-      name: name.trim(),
-      type: type as AccountType,
-      subtype: subtype?.trim() || "general",
-      parentId: parentId || null,
-      cashFlowCategory: cashFlow,
-      sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
-      isActive: isActive === undefined ? true : !!isActive,
-      description: description?.trim() || null,
-    }).returning();
-
-    // Post opening balance journal entry if provided
-    if (openingBalanceCents && Number.isFinite(openingBalanceCents) && openingBalanceCents !== 0) {
-      const retainedEarnings = await findSystemAccount(orgId, "RETAINED_EARNINGS");
-      if (retainedEarnings) {
-        const date = openingBalanceDate ? new Date(openingBalanceDate) : new Date();
-        const abs = Math.abs(openingBalanceCents);
-        // Assets/Expenses: Dr NewAccount / Cr RetainedEarnings
-        // Liabilities/Equity/Income: Dr RetainedEarnings / Cr NewAccount
-        const isDebitNormal = type === "ASSET" || type === "EXPENSE";
-        await postEntry({
-          organizationId: orgId,
-          date,
-          memo: `Opening balance — ${name.trim()}`,
-          sourceType: "ADJUSTMENT",
-          sourceId: row.id,
-          lines: isDebitNormal
-            ? [
-                { accountId: row.id, debitCents: abs, creditCents: 0 },
-                { accountId: retainedEarnings.id, debitCents: 0, creditCents: abs },
-              ]
-            : [
-                { accountId: retainedEarnings.id, debitCents: abs, creditCents: 0 },
-                { accountId: row.id, debitCents: 0, creditCents: abs },
-              ],
-        });
-      }
-    }
-
-    // Auto-register bank/savings/credit_card accounts in the banking table
-    // so they appear immediately in the import and banking pages.
-    const BANKING_SUBTYPES = ["bank", "savings", "credit_card"];
-    if (BANKING_SUBTYPES.includes(row.subtype)) {
-      await db.insert(bankAccounts).values({
+    const row = await db.transaction(async (tx) => {
+      const [created] = await tx.insert(accounts).values({
         organizationId: orgId,
-        accountId: row.id,
-        institutionName: row.name,
-      }).onConflictDoNothing();
-    }
+        code: code.trim(),
+        name: name.trim(),
+        type: type as AccountType,
+        subtype: subtype?.trim() || "general",
+        parentId: parentId || null,
+        cashFlowCategory: cashFlow,
+        sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
+        isActive: isActive === undefined ? true : !!isActive,
+        description: description?.trim() || null,
+      }).returning();
+
+      // Post opening balance journal entry if provided
+      if (openingBalanceCents && Number.isFinite(openingBalanceCents) && openingBalanceCents !== 0) {
+        const retainedEarnings = await findSystemAccount(orgId, "RETAINED_EARNINGS", tx);
+        if (retainedEarnings) {
+          const date = openingBalanceDate ? new Date(openingBalanceDate) : new Date();
+          const abs = Math.abs(openingBalanceCents);
+          // Assets/Expenses: Dr NewAccount / Cr RetainedEarnings
+          // Liabilities/Equity/Income: Dr RetainedEarnings / Cr NewAccount
+          const isDebitNormal = type === "ASSET" || type === "EXPENSE";
+          await postEntry({
+            organizationId: orgId,
+            date,
+            memo: `Opening balance — ${name.trim()}`,
+            sourceType: "ADJUSTMENT",
+            sourceId: created.id,
+            lines: isDebitNormal
+              ? [
+                  { accountId: created.id, debitCents: abs, creditCents: 0 },
+                  { accountId: retainedEarnings.id, debitCents: 0, creditCents: abs },
+                ]
+              : [
+                  { accountId: retainedEarnings.id, debitCents: abs, creditCents: 0 },
+                  { accountId: created.id, debitCents: 0, creditCents: abs },
+                ],
+          }, tx);
+        }
+      }
+
+      // Auto-register bank/savings/credit_card accounts in the banking table
+      // so they appear immediately in the import and banking pages.
+      const BANKING_SUBTYPES = ["bank", "savings", "credit_card"];
+      if (BANKING_SUBTYPES.includes(created.subtype)) {
+        await tx.insert(bankAccounts).values({
+          organizationId: orgId,
+          accountId: created.id,
+          institutionName: created.name,
+        }).onConflictDoNothing();
+      }
+
+      return created;
+    });
 
     res.status(201).json(serialize(row));
   } catch (err: any) {
@@ -162,11 +166,13 @@ router.delete("/accounts/:id", async (req, res) => {
   }
 
   // Reparent any children to the deleted account's parent so the tree stays intact.
-  await db.update(accounts).set({ parentId: existing.parentId })
-    .where(and(eq(accounts.parentId, req.params.id), eq(accounts.organizationId, orgId)));
+  await db.transaction(async (tx) => {
+    await tx.update(accounts).set({ parentId: existing.parentId })
+      .where(and(eq(accounts.parentId, req.params.id), eq(accounts.organizationId, orgId)));
 
-  await db.delete(accounts)
-    .where(and(eq(accounts.id, req.params.id), eq(accounts.organizationId, orgId)));
+    await tx.delete(accounts)
+      .where(and(eq(accounts.id, req.params.id), eq(accounts.organizationId, orgId)));
+  });
   res.status(204).send();
 });
 

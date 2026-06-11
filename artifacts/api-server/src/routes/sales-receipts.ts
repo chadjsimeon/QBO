@@ -54,28 +54,6 @@ router.post("/sales-receipts", async (req, res) => {
   const { subtotalCents, taxCents, totalCents } = sumTotals(computed);
   if (totalCents <= 0) { res.status(400).json({ error: "Total must be greater than zero" }); return; }
 
-  const [sr] = await db.insert(salesReceipts).values({
-    organizationId: orgId,
-    customerId: customerId || null,
-    depositAccountId,
-    number,
-    isRefund: !!isRefund,
-    date: new Date(date),
-    memo: memo || null,
-    subtotalCents, taxCents, totalCents,
-  }).returning();
-
-  await db.insert(salesReceiptLineItems).values(computed.map((l, i) => ({
-    salesReceiptId: sr.id,
-    description: l.description,
-    quantity: l.quantity,
-    unitPriceCents: l.unitPriceCents,
-    taxRateId: l.taxRateId || null,
-    accountId: l.accountId,
-    amountCents: l.amountCents,
-    sortOrder: i,
-  })));
-
   // Build the income/tax legs, then place cash on the correct side.
   let taxAccountId: string | null = null;
   if (taxCents > 0) { try { taxAccountId = (await findSystemAccount(orgId, "SALES_TAX_PAYABLE")).id; } catch { taxAccountId = null; } }
@@ -94,17 +72,43 @@ router.post("/sales-receipts", async (req, res) => {
     for (const leg of incomeLegs) entryLines.push({ accountId: leg.accountId, debitCents: 0, creditCents: leg.cents });
   }
 
-  const entry = await postEntry({
-    organizationId: orgId,
-    date: new Date(date),
-    memo: memo || `${isRefund ? "Refund" : "Sales receipt"} ${number}`,
-    sourceType: isRefund ? "REFUND_RECEIPT" : "SALES_RECEIPT",
-    sourceId: sr.id,
-    lines: entryLines,
-  });
-  await db.update(salesReceipts).set({ journalEntryId: entry.id }).where(eq(salesReceipts.id, sr.id));
+  const sr = await db.transaction(async (tx) => {
+    const [row] = await tx.insert(salesReceipts).values({
+      organizationId: orgId,
+      customerId: customerId || null,
+      depositAccountId,
+      number,
+      isRefund: !!isRefund,
+      date: new Date(date),
+      memo: memo || null,
+      subtotalCents, taxCents, totalCents,
+    }).returning();
 
-  res.status(201).json(serialize({ ...sr, journalEntryId: entry.id }));
+    await tx.insert(salesReceiptLineItems).values(computed.map((l, i) => ({
+      salesReceiptId: row.id,
+      description: l.description,
+      quantity: l.quantity,
+      unitPriceCents: l.unitPriceCents,
+      taxRateId: l.taxRateId || null,
+      accountId: l.accountId,
+      amountCents: l.amountCents,
+      sortOrder: i,
+    })));
+
+    const entry = await postEntry({
+      organizationId: orgId,
+      date: new Date(date),
+      memo: memo || `${isRefund ? "Refund" : "Sales receipt"} ${number}`,
+      sourceType: isRefund ? "REFUND_RECEIPT" : "SALES_RECEIPT",
+      sourceId: row.id,
+      lines: entryLines,
+    }, tx);
+    await tx.update(salesReceipts).set({ journalEntryId: entry.id }).where(eq(salesReceipts.id, row.id));
+
+    return { ...row, journalEntryId: entry.id };
+  });
+
+  res.status(201).json(serialize(sr));
 });
 
 router.post("/sales-receipts/:id/void", async (req, res) => {

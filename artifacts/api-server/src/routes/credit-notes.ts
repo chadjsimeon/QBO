@@ -46,16 +46,6 @@ router.post("/credit-notes", async (req, res) => {
   const { subtotalCents, taxCents, totalCents } = sumTotals(computed);
   if (totalCents <= 0) { res.status(400).json({ error: "Total must be greater than zero" }); return; }
 
-  const [cn] = await db.insert(creditNotes).values({
-    organizationId: orgId, customerId, number, date: new Date(date), memo: memo || null,
-    subtotalCents, taxCents, totalCents, balanceCents: totalCents,
-  }).returning();
-
-  await db.insert(creditNoteLineItems).values(computed.map((l, i) => ({
-    creditNoteId: cn.id, description: l.description, quantity: l.quantity, unitPriceCents: l.unitPriceCents,
-    taxRateId: l.taxRateId || null, accountId: l.accountId, amountCents: l.amountCents, sortOrder: i,
-  })));
-
   // Post: debit income lines (+ sales tax), credit A/R.
   const ar = await findSystemAccount(orgId, "AR");
   const entryLines: Array<{ accountId: string; debitCents: number; creditCents: number }> =
@@ -66,9 +56,22 @@ router.post("/credit-notes", async (req, res) => {
   }
   entryLines.push({ accountId: ar.id, debitCents: 0, creditCents: totalCents });
 
-  const entry = await postEntry({ organizationId: orgId, date: new Date(date), memo: memo || `Credit note ${number}`, sourceType: "CREDIT_NOTE", sourceId: cn.id, lines: entryLines });
-  await db.update(creditNotes).set({ journalEntryId: entry.id }).where(eq(creditNotes.id, cn.id));
-  res.status(201).json(serialize({ ...cn, journalEntryId: entry.id }));
+  const cn = await db.transaction(async (tx) => {
+    const [row] = await tx.insert(creditNotes).values({
+      organizationId: orgId, customerId, number, date: new Date(date), memo: memo || null,
+      subtotalCents, taxCents, totalCents, balanceCents: totalCents,
+    }).returning();
+
+    await tx.insert(creditNoteLineItems).values(computed.map((l, i) => ({
+      creditNoteId: row.id, description: l.description, quantity: l.quantity, unitPriceCents: l.unitPriceCents,
+      taxRateId: l.taxRateId || null, accountId: l.accountId, amountCents: l.amountCents, sortOrder: i,
+    })));
+
+    const entry = await postEntry({ organizationId: orgId, date: new Date(date), memo: memo || `Credit note ${number}`, sourceType: "CREDIT_NOTE", sourceId: row.id, lines: entryLines }, tx);
+    await tx.update(creditNotes).set({ journalEntryId: entry.id }).where(eq(creditNotes.id, row.id));
+    return { ...row, journalEntryId: entry.id };
+  });
+  res.status(201).json(serialize(cn));
 });
 
 // Apply available credit to one or more of the customer's open invoices.
@@ -92,13 +95,15 @@ router.post("/credit-notes/:id/apply", async (req, res) => {
     if (a.amountCents > inv.balanceCents) { res.status(400).json({ error: `Amount exceeds balance on ${inv.number}.` }); return; }
   }
 
-  for (const a of apps) {
-    const inv = invMap.get(a.invoiceId)!;
-    const newBal = inv.balanceCents - a.amountCents;
-    await db.update(invoices).set({ balanceCents: newBal, status: newBal <= 0 ? "PAID" : "PARTIAL" }).where(eq(invoices.id, a.invoiceId));
-    await db.insert(creditNoteApplications).values({ creditNoteId: cn.id, invoiceId: a.invoiceId, amountCents: a.amountCents });
-  }
-  await db.update(creditNotes).set({ balanceCents: cn.balanceCents - total }).where(eq(creditNotes.id, cn.id));
+  await db.transaction(async (tx) => {
+    for (const a of apps) {
+      const inv = invMap.get(a.invoiceId)!;
+      const newBal = inv.balanceCents - a.amountCents;
+      await tx.update(invoices).set({ balanceCents: newBal, status: newBal <= 0 ? "PAID" : "PARTIAL" }).where(eq(invoices.id, a.invoiceId));
+      await tx.insert(creditNoteApplications).values({ creditNoteId: cn.id, invoiceId: a.invoiceId, amountCents: a.amountCents });
+    }
+    await tx.update(creditNotes).set({ balanceCents: cn.balanceCents - total }).where(eq(creditNotes.id, cn.id));
+  });
   res.json({ ok: true, appliedCents: total, remainingCents: cn.balanceCents - total });
 });
 
@@ -108,12 +113,14 @@ router.post("/credit-notes/:id/void", async (req, res) => {
   if (!cn) { res.status(404).json({ error: "Not found" }); return; }
   if (cn.balanceCents !== cn.totalCents) { res.status(400).json({ error: "Cannot void a credit note that has been applied. Remove applications first." }); return; }
 
-  const [je] = await db.select().from(journalEntries).where(and(eq(journalEntries.organizationId, orgId), eq(journalEntries.sourceId, cn.id))).limit(1);
-  if (je) {
-    const lines = await db.select().from(journalLines).where(eq(journalLines.journalEntryId, je.id));
-    await postEntry({ organizationId: orgId, date: new Date(), memo: `Void credit note ${cn.number}`, sourceType: "ADJUSTMENT", isReversal: true, reversedEntryId: je.id, lines: lines.map(l => ({ accountId: l.accountId, debitCents: l.creditCents, creditCents: l.debitCents })) });
-  }
-  await db.update(creditNotes).set({ balanceCents: 0 }).where(eq(creditNotes.id, cn.id));
+  await db.transaction(async (tx) => {
+    const [je] = await tx.select().from(journalEntries).where(and(eq(journalEntries.organizationId, orgId), eq(journalEntries.sourceId, cn.id))).limit(1);
+    if (je) {
+      const lines = await tx.select().from(journalLines).where(eq(journalLines.journalEntryId, je.id));
+      await postEntry({ organizationId: orgId, date: new Date(), memo: `Void credit note ${cn.number}`, sourceType: "ADJUSTMENT", isReversal: true, reversedEntryId: je.id, lines: lines.map(l => ({ accountId: l.accountId, debitCents: l.creditCents, creditCents: l.debitCents })) }, tx);
+    }
+    await tx.update(creditNotes).set({ balanceCents: 0 }).where(eq(creditNotes.id, cn.id));
+  });
   res.json({ ok: true });
 });
 
