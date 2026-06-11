@@ -1,0 +1,4 @@
+# Orval rewrites these with LF; pin them so Windows checkouts don't show
+# line-ending churn and the CI codegen drift check stays meaningful.
+lib/api-client-react/src/generated/** text eol=lf
+lib/api-zod/src/generated/** text eol=lf
