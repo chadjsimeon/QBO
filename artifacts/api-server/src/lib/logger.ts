@@ -5,11 +5,7 @@ const isTest = process.env.NODE_ENV === "test";
 
 export const logger = pino({
   level: process.env.LOG_LEVEL ?? (isTest ? "silent" : "info"),
-  redact: [
-    "req.headers.authorization",
-    "req.headers.cookie",
-    "res.headers['set-cookie']",
-  ],
+  redact: ["req.headers.authorization", "req.headers.cookie", "res.headers['set-cookie']"],
   ...(isProduction
     ? {}
     : {

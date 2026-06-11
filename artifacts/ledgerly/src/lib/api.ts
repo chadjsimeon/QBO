@@ -1,9 +1,6 @@
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-export async function apiFetch<T = unknown>(
-  path: string,
-  options?: RequestInit,
-): Promise<T> {
+export async function apiFetch<T = unknown>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}/api${path}`, {
     credentials: "include",
     headers: { "Content-Type": "application/json", ...options?.headers },
@@ -18,9 +15,7 @@ export async function apiFetch<T = unknown>(
 }
 
 export function formatCents(cents: number, currency = "USD"): string {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(
-    cents / 100,
-  );
+  return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(cents / 100);
 }
 
 export function formatDate(d: Date | string): string {

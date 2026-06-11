@@ -3,10 +3,30 @@ import { useRoute, Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
 import { apiFetch, formatCents, formatDate } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-interface Line { id: string; accountId: string; accountCode: string | null; accountName: string | null; debitCents: number; creditCents: number; }
-interface Entry { id: string; date: string; memo: string | null; sourceType: string; lines: Line[]; }
+interface Line {
+  id: string;
+  accountId: string;
+  accountCode: string | null;
+  accountName: string | null;
+  debitCents: number;
+  creditCents: number;
+}
+interface Entry {
+  id: string;
+  date: string;
+  memo: string | null;
+  sourceType: string;
+  lines: Line[];
+}
 
 export default function JournalEntryDetailPage() {
   const [, params] = useRoute("/journal-entries/:id");
@@ -26,7 +46,10 @@ export default function JournalEntryDetailPage() {
   return (
     <>
       <div className="mb-6">
-        <Link href="/journal-entries" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
+        <Link
+          href="/journal-entries"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
+        >
           <ArrowLeft className="h-3 w-3" /> Back to journal entries
         </Link>
         <h1 className="text-2xl font-bold">{entry.memo ?? "Journal entry"}</h1>
@@ -34,7 +57,9 @@ export default function JournalEntryDetailPage() {
       </div>
 
       <Card className="shadow-md overflow-hidden">
-        <CardHeader><CardTitle>Ledger lines</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Ledger lines</CardTitle>
+        </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -45,14 +70,20 @@ export default function JournalEntryDetailPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {entry.lines.map(l => (
+              {entry.lines.map((l) => (
                 <TableRow key={l.id}>
                   <TableCell>
-                    <span className="font-mono text-xs text-muted-foreground mr-1">{l.accountCode}</span>
+                    <span className="font-mono text-xs text-muted-foreground mr-1">
+                      {l.accountCode}
+                    </span>
                     {l.accountName}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{l.debitCents ? formatCents(l.debitCents) : ""}</TableCell>
-                  <TableCell className="text-right tabular-nums">{l.creditCents ? formatCents(l.creditCents) : ""}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {l.debitCents ? formatCents(l.debitCents) : ""}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {l.creditCents ? formatCents(l.creditCents) : ""}
+                  </TableCell>
                 </TableRow>
               ))}
               <TableRow className="border-t-2 font-semibold">

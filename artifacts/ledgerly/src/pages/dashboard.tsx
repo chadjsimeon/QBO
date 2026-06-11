@@ -1,11 +1,27 @@
 import { useQuery } from "@tanstack/react-query";
 import {
-  AreaChart, Area, PieChart, Pie, Cell,
-  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  AreaChart,
+  Area,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
 } from "recharts";
 import {
-  TrendingUp, TrendingDown, FileText, DollarSign, Landmark, ArrowRight,
-  Lightbulb, ReceiptText, Clock, Newspaper,
+  TrendingUp,
+  TrendingDown,
+  FileText,
+  DollarSign,
+  Landmark,
+  ArrowRight,
+  Lightbulb,
+  ReceiptText,
+  Clock,
+  Newspaper,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { apiFetch, formatCents } from "@/lib/api";
@@ -63,14 +79,27 @@ function ChangeChip({ pct }: { pct: number }) {
   if (pct === 0) return null;
   const up = pct > 0;
   return (
-    <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${up ? "text-emerald-600" : "text-red-500"}`}>
+    <span
+      className={`inline-flex items-center gap-0.5 text-xs font-medium ${up ? "text-emerald-600" : "text-red-500"}`}
+    >
       {up ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-      {up ? "+" : ""}{pct}%
+      {up ? "+" : ""}
+      {pct}%
     </span>
   );
 }
 
-function PnlBar({ label, amountCents, maxCents, color }: { label: string; amountCents: number; maxCents: number; color: string }) {
+function PnlBar({
+  label,
+  amountCents,
+  maxCents,
+  color,
+}: {
+  label: string;
+  amountCents: number;
+  maxCents: number;
+  color: string;
+}) {
   const pct = maxCents > 0 ? Math.min(100, (amountCents / maxCents) * 100) : 0;
   return (
     <div className="space-y-1">
@@ -79,7 +108,10 @@ function PnlBar({ label, amountCents, maxCents, color }: { label: string; amount
         <span className="font-medium tabular-nums">{formatCents(amountCents)}</span>
       </div>
       <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
+        <div
+          className="h-full rounded-full transition-all"
+          style={{ width: `${pct}%`, backgroundColor: color }}
+        />
       </div>
     </div>
   );
@@ -96,28 +128,30 @@ export default function DashboardPage() {
 
   const maxPnl = Math.max(data?.profitLoss.incomeCents ?? 0, data?.profitLoss.expensesCents ?? 0);
 
-  const cashFlowData = data?.cashFlow.map(m => ({
-    month: m.month,
-    In: Math.round(m.inCents / 100),
-    Out: Math.round(m.outCents / 100),
-  })) ?? [];
+  const cashFlowData =
+    data?.cashFlow.map((m) => ({
+      month: m.month,
+      In: Math.round(m.inCents / 100),
+      Out: Math.round(m.outCents / 100),
+    })) ?? [];
 
   const totalBankBalance = data?.bankAccounts.reduce((s, a) => s + a.balanceCents, 0) ?? 0;
 
   return (
     <div className="space-y-6">
-
       {/* ── Greeting + Module tabs ── */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
           {greeting()}, {user?.organizationName ?? "there"}!
         </h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Here's what's happening with your business today.</p>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Here's what's happening with your business today.
+        </p>
       </div>
 
       {/* Module tabs */}
       <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-        {MODULES.map(m => (
+        {MODULES.map((m) => (
           <button
             key={m.label}
             className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors border ${
@@ -134,7 +168,6 @@ export default function DashboardPage() {
 
       {/* ── Row 1: Business Feed + Create Actions ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
         {/* Business Feed */}
         <Card className="shadow-sm">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
@@ -142,12 +175,16 @@ export default function DashboardPage() {
               <Newspaper className="h-4 w-4 text-primary" />
               <CardTitle className="text-sm font-semibold">Business Feed</CardTitle>
             </div>
-            <Link href="/reports" className="text-xs text-primary hover:underline font-medium">View all</Link>
+            <Link href="/reports" className="text-xs text-primary hover:underline font-medium">
+              View all
+            </Link>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <div className="space-y-2">
-                {[1, 2, 3].map(i => <div key={i} className="h-10 rounded-md bg-muted animate-pulse" />)}
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-10 rounded-md bg-muted animate-pulse" />
+                ))}
               </div>
             ) : !data?.recentFeed?.length ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -159,14 +196,16 @@ export default function DashboardPage() {
               </div>
             ) : (
               <ul className="divide-y">
-                {data.recentFeed.map(e => {
+                {data.recentFeed.map((e) => {
                   const label = e.memo || e.sourceType.replace(/_/g, " ");
                   const d = new Date(e.date);
                   return (
                     <li key={e.id} className="flex items-center justify-between py-2.5 gap-3">
                       <div className="min-w-0">
                         <p className="text-sm font-medium truncate">{label}</p>
-                        <p className="text-xs text-muted-foreground">{d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </p>
                       </div>
                       <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full whitespace-nowrap">
                         {e.sourceType.replace(/_/g, " ")}
@@ -195,7 +234,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-2.5">
-              {QUICK_ACTIONS.map(a => {
+              {QUICK_ACTIONS.map((a) => {
                 const Icon = a.icon;
                 return (
                   <button
@@ -219,7 +258,10 @@ export default function DashboardPage() {
                 <p className="text-base font-bold tabular-nums text-blue-600">
                   {data ? formatCents(data.arOpenCents) : "—"}
                 </p>
-                <Link href="/invoices" className="text-xs text-primary hover:underline inline-flex items-center gap-0.5 mt-0.5">
+                <Link
+                  href="/invoices"
+                  className="text-xs text-primary hover:underline inline-flex items-center gap-0.5 mt-0.5"
+                >
                   View invoices <ArrowRight className="h-3 w-3" />
                 </Link>
               </div>
@@ -228,7 +270,10 @@ export default function DashboardPage() {
                 <p className="text-base font-bold tabular-nums text-amber-600">
                   {data ? formatCents(data.apOpenCents) : "—"}
                 </p>
-                <Link href="/bills" className="text-xs text-primary hover:underline inline-flex items-center gap-0.5 mt-0.5">
+                <Link
+                  href="/bills"
+                  className="text-xs text-primary hover:underline inline-flex items-center gap-0.5 mt-0.5"
+                >
                   View bills <ArrowRight className="h-3 w-3" />
                 </Link>
               </div>
@@ -240,16 +285,21 @@ export default function DashboardPage() {
       {/* ── Row 2: Business at a Glance (4 widgets) ── */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Business at a glance</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            Business at a glance
+          </h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-
           {/* P&L */}
           <Card className="shadow-sm">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Profit &amp; Loss</CardTitle>
-                <span className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5">Last month</span>
+                <CardTitle className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Profit &amp; Loss
+                </CardTitle>
+                <span className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5">
+                  Last month
+                </span>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -270,10 +320,23 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="space-y-2 pt-1">
-                    <PnlBar label="Income" amountCents={data?.profitLoss.incomeCents ?? 0} maxCents={maxPnl} color="#22c55e" />
-                    <PnlBar label="Expenses" amountCents={data?.profitLoss.expensesCents ?? 0} maxCents={maxPnl} color="#f59e0b" />
+                    <PnlBar
+                      label="Income"
+                      amountCents={data?.profitLoss.incomeCents ?? 0}
+                      maxCents={maxPnl}
+                      color="#22c55e"
+                    />
+                    <PnlBar
+                      label="Expenses"
+                      amountCents={data?.profitLoss.expensesCents ?? 0}
+                      maxCents={maxPnl}
+                      color="#f59e0b"
+                    />
                   </div>
-                  <Link href="/reports" className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline">
+                  <Link
+                    href="/reports"
+                    className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline"
+                  >
                     Analyze profit &amp; loss <ArrowRight className="h-3 w-3" />
                   </Link>
                 </>
@@ -285,8 +348,12 @@ export default function DashboardPage() {
           <Card className="shadow-sm">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Expenses</CardTitle>
-                <span className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5">Last 30 days</span>
+                <CardTitle className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Expenses
+                </CardTitle>
+                <span className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5">
+                  Last 30 days
+                </span>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -329,10 +396,15 @@ export default function DashboardPage() {
                       </ResponsiveContainer>
                     </div>
                   ) : (
-                    <div className="h-24 flex items-center justify-center text-xs text-muted-foreground">No expense data</div>
+                    <div className="h-24 flex items-center justify-center text-xs text-muted-foreground">
+                      No expense data
+                    </div>
                   )}
 
-                  <Link href="/bills" className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline">
+                  <Link
+                    href="/bills"
+                    className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline"
+                  >
                     View all spending <ArrowRight className="h-3 w-3" />
                   </Link>
                 </>
@@ -345,13 +417,17 @@ export default function DashboardPage() {
             <CardHeader className="pb-2">
               <div className="flex items-center gap-2">
                 <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
-                <CardTitle className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Smart suggestions</CardTitle>
+                <CardTitle className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Smart suggestions
+                </CardTitle>
               </div>
             </CardHeader>
             <CardContent className="space-y-2.5">
               {isLoading ? (
                 <div className="space-y-2">
-                  {[1, 2, 3].map(i => <div key={i} className="h-9 bg-muted rounded animate-pulse" />)}
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-9 bg-muted rounded animate-pulse" />
+                  ))}
                 </div>
               ) : (
                 <>
@@ -360,8 +436,12 @@ export default function DashboardPage() {
                       onClick={() => navigate("/invoices")}
                       className="w-full text-left rounded-lg border border-border px-3 py-2.5 hover:bg-muted/50 hover:border-primary/30 transition-colors group"
                     >
-                      <p className="text-xs font-semibold text-foreground group-hover:text-primary">Collect overdue AR</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{formatCents(data.arOpenCents)} outstanding</p>
+                      <p className="text-xs font-semibold text-foreground group-hover:text-primary">
+                        Collect overdue AR
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {formatCents(data.arOpenCents)} outstanding
+                      </p>
                     </button>
                   )}
                   {data && data.apOpenCents > 0 && (
@@ -369,22 +449,32 @@ export default function DashboardPage() {
                       onClick={() => navigate("/bills")}
                       className="w-full text-left rounded-lg border border-border px-3 py-2.5 hover:bg-muted/50 hover:border-primary/30 transition-colors group"
                     >
-                      <p className="text-xs font-semibold text-foreground group-hover:text-primary">Pay outstanding bills</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{formatCents(data.apOpenCents)} due</p>
+                      <p className="text-xs font-semibold text-foreground group-hover:text-primary">
+                        Pay outstanding bills
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {formatCents(data.apOpenCents)} due
+                      </p>
                     </button>
                   )}
                   <button
                     onClick={() => navigate("/reports")}
                     className="w-full text-left rounded-lg border border-border px-3 py-2.5 hover:bg-muted/50 hover:border-primary/30 transition-colors group"
                   >
-                    <p className="text-xs font-semibold text-foreground group-hover:text-primary">View profit &amp; loss</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Analyze monthly performance</p>
+                    <p className="text-xs font-semibold text-foreground group-hover:text-primary">
+                      View profit &amp; loss
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Analyze monthly performance
+                    </p>
                   </button>
                   <button
                     onClick={() => navigate("/banking")}
                     className="w-full text-left rounded-lg border border-border px-3 py-2.5 hover:bg-muted/50 hover:border-primary/30 transition-colors group"
                   >
-                    <p className="text-xs font-semibold text-foreground group-hover:text-primary">Review bank transactions</p>
+                    <p className="text-xs font-semibold text-foreground group-hover:text-primary">
+                      Review bank transactions
+                    </p>
                     <p className="text-xs text-muted-foreground mt-0.5">Reconcile accounts</p>
                   </button>
                   <p className="text-[10px] text-muted-foreground/60 pt-1">
@@ -399,14 +489,18 @@ export default function DashboardPage() {
           <Card className="shadow-sm">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Bank Accounts</CardTitle>
+                <CardTitle className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Bank Accounts
+                </CardTitle>
                 <span className="text-[10px] text-muted-foreground">As of today</span>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
               {isLoading ? (
                 <div className="space-y-2">
-                  {[1, 2].map(i => <div key={i} className="h-10 bg-muted rounded animate-pulse" />)}
+                  {[1, 2].map((i) => (
+                    <div key={i} className="h-10 bg-muted rounded animate-pulse" />
+                  ))}
                 </div>
               ) : (
                 <>
@@ -418,14 +512,19 @@ export default function DashboardPage() {
                     <p className="text-xs text-muted-foreground">No bank accounts linked.</p>
                   ) : (
                     <div className="space-y-2">
-                      {data.bankAccounts.map(acct => (
-                        <div key={acct.id} className="flex items-center justify-between rounded-md border border-border px-2.5 py-2">
+                      {data.bankAccounts.map((acct) => (
+                        <div
+                          key={acct.id}
+                          className="flex items-center justify-between rounded-md border border-border px-2.5 py-2"
+                        >
                           <div className="min-w-0">
                             <p className="text-xs font-medium truncate">{acct.name}</p>
                             <p className="text-[10px] text-muted-foreground">{acct.code}</p>
                           </div>
                           <div className="text-right shrink-0 ml-2">
-                            <p className="text-xs font-semibold tabular-nums">{formatCents(acct.balanceCents)}</p>
+                            <p className="text-xs font-semibold tabular-nums">
+                              {formatCents(acct.balanceCents)}
+                            </p>
                             <div className="inline-flex items-center gap-0.5">
                               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                               <span className="text-[10px] text-muted-foreground">Reviewed</span>
@@ -436,7 +535,10 @@ export default function DashboardPage() {
                     </div>
                   )}
 
-                  <Link href="/banking" className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline">
+                  <Link
+                    href="/banking"
+                    className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline"
+                  >
                     Manage accounts <ArrowRight className="h-3 w-3" />
                   </Link>
                 </>
@@ -451,20 +553,26 @@ export default function DashboardPage() {
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Cash Flow</CardTitle>
+              <CardTitle className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Cash Flow
+              </CardTitle>
               <p className="text-xs text-muted-foreground mt-0.5">Track how your money is doing</p>
             </div>
-            <Link href="/banking" className="text-xs text-primary hover:underline font-medium">Link bank account</Link>
+            <Link href="/banking" className="text-xs text-primary hover:underline font-medium">
+              Link bank account
+            </Link>
           </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="h-48 bg-muted rounded animate-pulse" />
-          ) : !cashFlowData.some(m => m.In > 0 || m.Out > 0) ? (
+          ) : !cashFlowData.some((m) => m.In > 0 || m.Out > 0) ? (
             <div className="h-48 flex flex-col items-center justify-center text-center">
               <Landmark className="h-8 w-8 text-muted-foreground/40 mb-3" />
               <p className="text-sm font-medium text-muted-foreground">No cash flow data yet</p>
-              <p className="text-xs text-muted-foreground mt-1">Record payments to see your cash flow trend</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Record payments to see your cash flow trend
+              </p>
             </div>
           ) : (
             <div className="h-52">
@@ -480,27 +588,57 @@ export default function DashboardPage() {
                       <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--border))"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
                   <YAxis
                     tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                    axisLine={false} tickLine={false}
-                    tickFormatter={v => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
                     width={44}
                   />
                   <Tooltip
                     formatter={(v: number) => [`$${v.toLocaleString()}`, undefined]}
-                    contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid hsl(var(--border))" }}
+                    contentStyle={{
+                      fontSize: 12,
+                      borderRadius: 8,
+                      border: "1px solid hsl(var(--border))",
+                    }}
                   />
-                  <Area type="monotone" dataKey="In" name="Money in" stroke="#22c55e" strokeWidth={2} fill="url(#gradIn)" dot={false} />
-                  <Area type="monotone" dataKey="Out" name="Money out" stroke="#f59e0b" strokeWidth={2} fill="url(#gradOut)" dot={false} />
+                  <Area
+                    type="monotone"
+                    dataKey="In"
+                    name="Money in"
+                    stroke="#22c55e"
+                    strokeWidth={2}
+                    fill="url(#gradIn)"
+                    dot={false}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="Out"
+                    name="Money out"
+                    stroke="#f59e0b"
+                    strokeWidth={2}
+                    fill="url(#gradOut)"
+                    dot={false}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
           )}
 
           {/* Legend */}
-          {!isLoading && cashFlowData.some(m => m.In > 0 || m.Out > 0) && (
+          {!isLoading && cashFlowData.some((m) => m.In > 0 || m.Out > 0) && (
             <div className="flex items-center gap-4 mt-2">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span className="h-2 w-5 rounded-full bg-emerald-500 inline-block" />
@@ -514,7 +652,6 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
-
     </div>
   );
 }

@@ -21,11 +21,20 @@ const child = spawn("docker", ["exec", CONTAINER, "pg_dump", "-U", "qbo", "-d", 
   stdio: ["ignore", "pipe", "inherit"],
 });
 child.stdout.pipe(out);
-child.on("error", (e) => { console.error(`Failed to run docker: ${e.message}`); process.exit(1); });
+child.on("error", (e) => {
+  console.error(`Failed to run docker: ${e.message}`);
+  process.exit(1);
+});
 out.on("close", () => {
   const size = statSync(outFile).size;
-  if (size > 0) console.log(`✓ Backup written: backups/${path.basename(outFile)} (${(size / 1024).toFixed(1)} KB)`);
+  if (size > 0)
+    console.log(
+      `✓ Backup written: backups/${path.basename(outFile)} (${(size / 1024).toFixed(1)} KB)`,
+    );
 });
 child.on("close", (code) => {
-  if (code !== 0) { console.error(`✗ pg_dump exited ${code}`); process.exit(code ?? 1); }
+  if (code !== 0) {
+    console.error(`✗ pg_dump exited ${code}`);
+    process.exit(code ?? 1);
+  }
 });

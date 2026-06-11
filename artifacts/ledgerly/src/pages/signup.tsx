@@ -69,7 +69,7 @@ export default function SignupPage() {
                   type="text"
                   placeholder="Jane Smith"
                   value={name}
-                  onChange={e => setName(e.target.value)}
+                  onChange={(e) => setName(e.target.value)}
                   required
                 />
               </div>
@@ -80,7 +80,7 @@ export default function SignupPage() {
                   type="text"
                   placeholder="Acme Inc."
                   value={companyName}
-                  onChange={e => setCompanyName(e.target.value)}
+                  onChange={(e) => setCompanyName(e.target.value)}
                   required
                 />
               </div>
@@ -91,7 +91,7 @@ export default function SignupPage() {
                   type="email"
                   placeholder="jane@acme.com"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                 />
               </div>
@@ -102,7 +102,7 @@ export default function SignupPage() {
                   type="password"
                   placeholder="Min. 8 characters"
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
                 />
               </div>
@@ -116,7 +116,9 @@ export default function SignupPage() {
 
         <p className="mt-4 text-center text-xs text-muted-foreground">
           Already have an account?{" "}
-          <Link href="/login" className="text-primary hover:underline font-medium">Sign in</Link>
+          <Link href="/login" className="text-primary hover:underline font-medium">
+            Sign in
+          </Link>
         </p>
       </div>
     </main>

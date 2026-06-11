@@ -7,11 +7,13 @@ describe("auth", () => {
     const agent = supertest.agent(app);
     const email = `auth-${Date.now()}@test.local`;
 
-    await agent.post("/api/auth/register")
+    await agent
+      .post("/api/auth/register")
       .send({ name: "A", email, password: "password123", companyName: "AuthCo" })
       .expect(201);
 
-    const login = await agent.post("/api/auth/login")
+    const login = await agent
+      .post("/api/auth/login")
       .send({ email, password: "password123" })
       .expect(200);
     expect(login.body.organizationId).toBeTruthy();
@@ -26,12 +28,11 @@ describe("auth", () => {
   it("rejects a wrong password with 401", async () => {
     const agent = supertest.agent(app);
     const email = `auth-wrong-${Date.now()}@test.local`;
-    await agent.post("/api/auth/register")
+    await agent
+      .post("/api/auth/register")
       .send({ name: "A", email, password: "password123", companyName: "AuthCo" })
       .expect(201);
-    await agent.post("/api/auth/login")
-      .send({ email, password: "not-the-password" })
-      .expect(401);
+    await agent.post("/api/auth/login").send({ email, password: "not-the-password" }).expect(401);
   });
 
   it("rejects a duplicate email with 409", async () => {
@@ -43,8 +44,14 @@ describe("auth", () => {
   });
 
   it("rejects short passwords with 400", async () => {
-    await supertest(app).post("/api/auth/register")
-      .send({ name: "A", email: `short-${Date.now()}@test.local`, password: "short", companyName: "X" })
+    await supertest(app)
+      .post("/api/auth/register")
+      .send({
+        name: "A",
+        email: `short-${Date.now()}@test.local`,
+        password: "short",
+        companyName: "X",
+      })
       .expect(400);
   });
 

@@ -9,81 +9,116 @@ import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 interface Account {
-  id: string; code: string; name: string; type: string; subtype: string;
-  isActive: boolean; parentId: string | null; systemRole: string | null;
-  cashFlowCategory: string; sortOrder: number; description: string | null;
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  subtype: string;
+  isActive: boolean;
+  parentId: string | null;
+  systemRole: string | null;
+  cashFlowCategory: string;
+  sortOrder: number;
+  description: string | null;
 }
 
 const ACCOUNT_TYPES = ["ASSET", "LIABILITY", "EQUITY", "INCOME", "EXPENSE"] as const;
 
 const TYPE_LABELS: Record<string, string> = {
-  ASSET: "Asset", LIABILITY: "Liability", EQUITY: "Equity",
-  INCOME: "Income", EXPENSE: "Expense",
+  ASSET: "Asset",
+  LIABILITY: "Liability",
+  EQUITY: "Equity",
+  INCOME: "Income",
+  EXPENSE: "Expense",
 };
 
 const DETAIL_TYPES: Record<string, Array<{ value: string; label: string }>> = {
   ASSET: [
-    { value: "bank",                     label: "Bank" },
-    { value: "savings",                  label: "Savings" },
-    { value: "cash_on_hand",             label: "Cash on hand" },
-    { value: "receivable",               label: "Accounts receivable (A/R)" },
-    { value: "inventory",                label: "Inventory" },
-    { value: "prepaid",                  label: "Prepaid expenses" },
-    { value: "fixed",                    label: "Fixed assets" },
+    { value: "bank", label: "Bank" },
+    { value: "savings", label: "Savings" },
+    { value: "cash_on_hand", label: "Cash on hand" },
+    { value: "receivable", label: "Accounts receivable (A/R)" },
+    { value: "inventory", label: "Inventory" },
+    { value: "prepaid", label: "Prepaid expenses" },
+    { value: "fixed", label: "Fixed assets" },
     { value: "accumulated_depreciation", label: "Accumulated depreciation" },
-    { value: "general",                  label: "Other asset" },
+    { value: "general", label: "Other asset" },
   ],
   LIABILITY: [
-    { value: "payable",          label: "Accounts payable (A/P)" },
-    { value: "credit_card",      label: "Credit card" },
-    { value: "tax",              label: "Sales tax payable" },
-    { value: "other_current",    label: "Other current liabilities" },
+    { value: "payable", label: "Accounts payable (A/P)" },
+    { value: "credit_card", label: "Credit card" },
+    { value: "tax", label: "Sales tax payable" },
+    { value: "other_current", label: "Other current liabilities" },
     { value: "deferred_revenue", label: "Deferred revenue" },
-    { value: "long_term",        label: "Long-term liabilities" },
-    { value: "general",          label: "Other liability" },
+    { value: "long_term", label: "Long-term liabilities" },
+    { value: "general", label: "Other liability" },
   ],
   EQUITY: [
-    { value: "equity",   label: "Owner's equity" },
+    { value: "equity", label: "Owner's equity" },
     { value: "retained", label: "Retained earnings" },
-    { value: "general",  label: "Opening balance equity" },
+    { value: "general", label: "Opening balance equity" },
   ],
   INCOME: [
-    { value: "revenue",       label: "Service/fee income" },
+    { value: "revenue", label: "Service/fee income" },
     { value: "product_sales", label: "Sales of product income" },
-    { value: "other_income",  label: "Other primary income" },
-    { value: "general",       label: "Other income" },
+    { value: "other_income", label: "Other primary income" },
+    { value: "general", label: "Other income" },
   ],
   EXPENSE: [
-    { value: "cogs",         label: "Cost of goods sold" },
-    { value: "payroll",      label: "Payroll expenses" },
-    { value: "facilities",   label: "Rent or lease" },
-    { value: "utilities",    label: "Utilities" },
-    { value: "software",     label: "Office/General administrative" },
-    { value: "travel",       label: "Travel expenses" },
-    { value: "marketing",    label: "Advertising/Promotional" },
+    { value: "cogs", label: "Cost of goods sold" },
+    { value: "payroll", label: "Payroll expenses" },
+    { value: "facilities", label: "Rent or lease" },
+    { value: "utilities", label: "Utilities" },
+    { value: "software", label: "Office/General administrative" },
+    { value: "travel", label: "Travel expenses" },
+    { value: "marketing", label: "Advertising/Promotional" },
     { value: "professional", label: "Legal & professional fees" },
-    { value: "bank_fees",    label: "Bank charges" },
-    { value: "general",      label: "Other business expenses" },
+    { value: "bank_fees", label: "Bank charges" },
+    { value: "general", label: "Other business expenses" },
   ],
 };
 
 const FINANCIAL_STATEMENT: Record<string, string> = {
-  ASSET: "Balance Sheet", LIABILITY: "Balance Sheet", EQUITY: "Balance Sheet",
-  INCOME: "Profit & Loss", EXPENSE: "Profit & Loss",
+  ASSET: "Balance Sheet",
+  LIABILITY: "Balance Sheet",
+  EQUITY: "Balance Sheet",
+  INCOME: "Profit & Loss",
+  EXPENSE: "Profit & Loss",
 };
 
 function detailLabel(type: string, subtype: string) {
-  return DETAIL_TYPES[type]?.find(d => d.value === subtype)?.label ?? subtype;
+  return DETAIL_TYPES[type]?.find((d) => d.value === subtype)?.label ?? subtype;
 }
 
-function AccountForm({ initial, allAccounts, onSave, onClose, saving }: {
+function AccountForm({
+  initial,
+  allAccounts,
+  onSave,
+  onClose,
+  saving,
+}: {
   initial?: Partial<Account>;
   allAccounts: Account[];
-  onSave: (data: Partial<Account> & { openingBalanceCents?: number; openingBalanceDate?: string }) => void;
+  onSave: (
+    data: Partial<Account> & { openingBalanceCents?: number; openingBalanceDate?: string },
+  ) => void;
   onClose: () => void;
   saving: boolean;
 }) {
@@ -98,7 +133,7 @@ function AccountForm({ initial, allAccounts, onSave, onClose, saving }: {
   const [parentId, setParentId] = useState(initial?.parentId ?? "");
   const [openingBalance, setOpeningBalance] = useState("");
   const [openingBalanceDate, setOpeningBalanceDate] = useState(
-    new Date().toISOString().slice(0, 10)
+    new Date().toISOString().slice(0, 10),
   );
   const [description, setDescription] = useState(initial?.description ?? "");
   const [isActive, setIsActive] = useState(initial?.isActive ?? true);
@@ -111,16 +146,19 @@ function AccountForm({ initial, allAccounts, onSave, onClose, saving }: {
   }
 
   const detailOptions = DETAIL_TYPES[type] ?? [];
-  const parentOptions = allAccounts.filter(a => a.id !== initial?.id);
+  const parentOptions = allAccounts.filter((a) => a.id !== initial?.id);
   const statement = FINANCIAL_STATEMENT[type] ?? "Balance Sheet";
 
   return (
     <form
-      onSubmit={e => {
+      onSubmit={(e) => {
         e.preventDefault();
         const obCents = openingBalance ? Math.round(parseFloat(openingBalance) * 100) : undefined;
         onSave({
-          code, name, type, subtype,
+          code,
+          name,
+          type,
+          subtype,
           parentId: isSubaccount ? parentId || null : null,
           description: description || null,
           isActive,
@@ -132,11 +170,13 @@ function AccountForm({ initial, allAccounts, onSave, onClose, saving }: {
       {/* Row 1: Account name + Account number */}
       <div className="grid grid-cols-5 gap-4 mb-4">
         <div className="col-span-3 space-y-1">
-          <Label className="text-sm font-medium">Account name <span className="text-destructive">*</span></Label>
+          <Label className="text-sm font-medium">
+            Account name <span className="text-destructive">*</span>
+          </Label>
           <Input
             required
             value={name}
-            onChange={e => setName(e.target.value)}
+            onChange={(e) => setName(e.target.value)}
             placeholder=""
             className="h-9"
           />
@@ -145,7 +185,7 @@ function AccountForm({ initial, allAccounts, onSave, onClose, saving }: {
           <Label className="text-sm font-medium">Account number</Label>
           <Input
             value={code}
-            onChange={e => setCode(e.target.value)}
+            onChange={(e) => setCode(e.target.value)}
             placeholder=""
             className="h-9"
           />
@@ -156,32 +196,34 @@ function AccountForm({ initial, allAccounts, onSave, onClose, saving }: {
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div className="space-y-1">
           <div className="flex items-center gap-1">
-            <Label className="text-sm font-medium">Account type <span className="text-destructive">*</span></Label>
+            <Label className="text-sm font-medium">
+              Account type <span className="text-destructive">*</span>
+            </Label>
             <Info className="h-3.5 w-3.5 text-muted-foreground" />
           </div>
           <Select
             value={type}
-            onChange={e => handleTypeChange(e.target.value)}
+            onChange={(e) => handleTypeChange(e.target.value)}
             disabled={isSystem}
             className="h-9"
           >
-            {ACCOUNT_TYPES.map(t => (
-              <option key={t} value={t}>{TYPE_LABELS[t]}</option>
+            {ACCOUNT_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {TYPE_LABELS[t]}
+              </option>
             ))}
           </Select>
-          {isSystem && (
-            <p className="text-xs text-muted-foreground">Locked — system account.</p>
-          )}
+          {isSystem && <p className="text-xs text-muted-foreground">Locked — system account.</p>}
         </div>
         <div className="space-y-1">
-          <Label className="text-sm font-medium">Detail type <span className="text-destructive">*</span></Label>
-          <Select
-            value={subtype}
-            onChange={e => setSubtype(e.target.value)}
-            className="h-9"
-          >
-            {detailOptions.map(d => (
-              <option key={d.value} value={d.value}>{d.label}</option>
+          <Label className="text-sm font-medium">
+            Detail type <span className="text-destructive">*</span>
+          </Label>
+          <Select value={subtype} onChange={(e) => setSubtype(e.target.value)} className="h-9">
+            {detailOptions.map((d) => (
+              <option key={d.value} value={d.value}>
+                {d.label}
+              </option>
             ))}
           </Select>
         </div>
@@ -193,7 +235,10 @@ function AccountForm({ initial, allAccounts, onSave, onClose, saving }: {
           type="checkbox"
           id="subaccount"
           checked={isSubaccount}
-          onChange={e => { setIsSubaccount(e.target.checked); if (!e.target.checked) setParentId(""); }}
+          onChange={(e) => {
+            setIsSubaccount(e.target.checked);
+            if (!e.target.checked) setParentId("");
+          }}
           className="h-4 w-4 rounded border-gray-300 text-primary"
         />
         <label htmlFor="subaccount" className="text-sm cursor-pointer select-none">
@@ -204,10 +249,12 @@ function AccountForm({ initial, allAccounts, onSave, onClose, saving }: {
       {isSubaccount && (
         <div className="mb-4 pl-6 space-y-1">
           <Label className="text-sm font-medium">Parent account</Label>
-          <Select value={parentId} onChange={e => setParentId(e.target.value)} className="h-9">
+          <Select value={parentId} onChange={(e) => setParentId(e.target.value)} className="h-9">
             <option value="">— select parent —</option>
-            {parentOptions.map(a => (
-              <option key={a.id} value={a.id}>{a.code} {a.name}</option>
+            {parentOptions.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.code} {a.name}
+              </option>
             ))}
           </Select>
         </div>
@@ -227,7 +274,7 @@ function AccountForm({ initial, allAccounts, onSave, onClose, saving }: {
                 step="0.01"
                 placeholder="0.00"
                 value={openingBalance}
-                onChange={e => setOpeningBalance(e.target.value)}
+                onChange={(e) => setOpeningBalance(e.target.value)}
                 className="h-9"
               />
             </div>
@@ -237,7 +284,7 @@ function AccountForm({ initial, allAccounts, onSave, onClose, saving }: {
                 <Input
                   type="date"
                   value={openingBalanceDate}
-                  onChange={e => setOpeningBalanceDate(e.target.value)}
+                  onChange={(e) => setOpeningBalanceDate(e.target.value)}
                   className="h-9"
                 />
               </div>
@@ -254,7 +301,7 @@ function AccountForm({ initial, allAccounts, onSave, onClose, saving }: {
         <Label className="text-sm font-medium">Description</Label>
         <textarea
           value={description}
-          onChange={e => setDescription(e.target.value)}
+          onChange={(e) => setDescription(e.target.value)}
           rows={2}
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
         />
@@ -305,16 +352,23 @@ export default function AccountsPage() {
   });
 
   const create = useMutation({
-    mutationFn: (data: Partial<Account> & { openingBalanceCents?: number; openingBalanceDate?: string }) =>
-      apiFetch("/accounts", { method: "POST", body: JSON.stringify(data) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["accounts"] }); setDialog({ open: false }); },
+    mutationFn: (
+      data: Partial<Account> & { openingBalanceCents?: number; openingBalanceDate?: string },
+    ) => apiFetch("/accounts", { method: "POST", body: JSON.stringify(data) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["accounts"] });
+      setDialog({ open: false });
+    },
     onError: (e: Error) => setError(e.message),
   });
 
   const update = useMutation({
     mutationFn: ({ id, ...data }: Partial<Account>) =>
       apiFetch(`/accounts/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["accounts"] }); setDialog({ open: false }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["accounts"] });
+      setDialog({ open: false });
+    },
     onError: (e: Error) => setError(e.message),
   });
 
@@ -324,14 +378,22 @@ export default function AccountsPage() {
     onError: (e: Error) => setError(e.message),
   });
 
-  function onSave(data: Partial<Account> & { openingBalanceCents?: number; openingBalanceDate?: string }) {
+  function onSave(
+    data: Partial<Account> & { openingBalanceCents?: number; openingBalanceDate?: string },
+  ) {
     setError(null);
     if (dialog.editing) update.mutate({ ...data, id: dialog.editing.id });
     else create.mutate(data);
   }
 
-  function openNew() { setError(null); setDialog({ open: true }); }
-  function openEdit(a: Account) { setError(null); setDialog({ open: true, editing: a }); }
+  function openNew() {
+    setError(null);
+    setDialog({ open: true });
+  }
+  function openEdit(a: Account) {
+    setError(null);
+    setDialog({ open: true, editing: a });
+  }
 
   const grouped = accounts.reduce<Record<string, Account[]>>((acc, a) => {
     (acc[a.type] ??= []).push(a);
@@ -357,7 +419,7 @@ export default function AccountsPage() {
       )}
 
       <div className="space-y-6">
-        {ACCOUNT_TYPES.map(type => {
+        {ACCOUNT_TYPES.map((type) => {
           const accts = grouped[type] ?? [];
           if (!accts.length) return null;
           return (
@@ -377,19 +439,28 @@ export default function AccountsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {accts.map(a => (
+                    {accts.map((a) => (
                       <TableRow key={a.id} className={a.isActive ? undefined : "opacity-50"}>
-                        <TableCell className="font-mono text-sm text-muted-foreground">{a.code}</TableCell>
-                        <TableCell className="font-medium" style={{ paddingLeft: a.parentId ? "2rem" : undefined }}>
+                        <TableCell className="font-mono text-sm text-muted-foreground">
+                          {a.code}
+                        </TableCell>
+                        <TableCell
+                          className="font-medium"
+                          style={{ paddingLeft: a.parentId ? "2rem" : undefined }}
+                        >
                           {a.name}
-                          {!a.isActive && <span className="ml-2 text-xs text-muted-foreground">(inactive)</span>}
+                          {!a.isActive && (
+                            <span className="ml-2 text-xs text-muted-foreground">(inactive)</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
                           {detailLabel(a.type, a.subtype)}
                         </TableCell>
                         <TableCell>
                           {a.systemRole && (
-                            <Badge variant="outline" className="text-xs">{a.systemRole}</Badge>
+                            <Badge variant="outline" className="text-xs">
+                              {a.systemRole}
+                            </Badge>
                           )}
                         </TableCell>
                         <TableCell>
@@ -401,7 +472,9 @@ export default function AccountsPage() {
                               variant="ghost"
                               size="icon"
                               disabled={!!a.systemRole}
-                              title={a.systemRole ? "System accounts can't be deleted" : "Delete account"}
+                              title={
+                                a.systemRole ? "System accounts can't be deleted" : "Delete account"
+                              }
                               onClick={() => {
                                 setError(null);
                                 if (confirm(`Delete account "${a.name}"?`)) remove.mutate(a.id);
@@ -421,12 +494,20 @@ export default function AccountsPage() {
         })}
       </div>
 
-      <Dialog open={dialog.open} onOpenChange={o => { if (!o) setError(null); setDialog({ open: o }); }}>
+      <Dialog
+        open={dialog.open}
+        onOpenChange={(o) => {
+          if (!o) setError(null);
+          setDialog({ open: o });
+        }}
+      >
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>{dialog.editing ? "Edit account" : "New account"}</DialogTitle>
             <DialogDescription className="sr-only">
-              {dialog.editing ? "Edit the details of this account." : "Fill in the details to create a new account."}
+              {dialog.editing
+                ? "Edit the details of this account."
+                : "Fill in the details to create a new account."}
             </DialogDescription>
           </DialogHeader>
           {error && dialog.open && (
@@ -438,7 +519,10 @@ export default function AccountsPage() {
             initial={dialog.editing}
             allAccounts={accounts}
             onSave={onSave}
-            onClose={() => { setError(null); setDialog({ open: false }); }}
+            onClose={() => {
+              setError(null);
+              setDialog({ open: false });
+            }}
             saving={create.isPending || update.isPending}
           />
         </DialogContent>

@@ -1,10 +1,26 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import {
-  Plus, FileText, DollarSign, FileSpreadsheet, ClipboardList, FileMinus,
-  Receipt, RotateCcw, UserPlus, ShoppingCart, BookCheck, Package, FilePlus,
-  CreditCard, Building2, Landmark, ArrowLeftRight,
-  BookOpen, Banknote, X,
+  Plus,
+  FileText,
+  DollarSign,
+  FileSpreadsheet,
+  ClipboardList,
+  FileMinus,
+  Receipt,
+  RotateCcw,
+  UserPlus,
+  ShoppingCart,
+  BookCheck,
+  Package,
+  FilePlus,
+  CreditCard,
+  Building2,
+  Landmark,
+  ArrowLeftRight,
+  BookOpen,
+  Banknote,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -25,37 +41,37 @@ const CATEGORIES: Category[] = [
   {
     title: "Customers",
     items: [
-      { label: "Invoice",         icon: FileText,        href: "/invoices/new" },
-      { label: "Receive payment", icon: DollarSign,      href: "/payments/new" },
-      { label: "Statement",       icon: FileSpreadsheet, href: "/statements" },
-      { label: "Estimate",        icon: ClipboardList,   href: "/estimates/new" },
-      { label: "Credit note",     icon: FileMinus,       href: "/credit-notes/new" },
-      { label: "Sales receipt",   icon: Receipt,         href: "/sales-receipts/new" },
-      { label: "Refund receipt",  icon: RotateCcw,       href: "/sales-receipts/new?mode=refund" },
-      { label: "Add customer",    icon: UserPlus,        href: "/customers" },
+      { label: "Invoice", icon: FileText, href: "/invoices/new" },
+      { label: "Receive payment", icon: DollarSign, href: "/payments/new" },
+      { label: "Statement", icon: FileSpreadsheet, href: "/statements" },
+      { label: "Estimate", icon: ClipboardList, href: "/estimates/new" },
+      { label: "Credit note", icon: FileMinus, href: "/credit-notes/new" },
+      { label: "Sales receipt", icon: Receipt, href: "/sales-receipts/new" },
+      { label: "Refund receipt", icon: RotateCcw, href: "/sales-receipts/new?mode=refund" },
+      { label: "Add customer", icon: UserPlus, href: "/customers" },
     ],
   },
   {
     title: "Suppliers",
     items: [
-      { label: "Expense",          icon: ShoppingCart, href: "/expenses/new" },
-      { label: "Cheque",           icon: BookCheck,    href: "/expenses/new?mode=cheque" },
-      { label: "Bill",             icon: Receipt,      href: "/bills/new" },
-      { label: "Pay bills",        icon: Banknote,     href: "/payments/new" },
-      { label: "Purchase order",   icon: Package,      href: "/purchase-orders/new" },
-      { label: "Supplier credit",  icon: FilePlus,     href: "/vendor-credits/new" },
+      { label: "Expense", icon: ShoppingCart, href: "/expenses/new" },
+      { label: "Cheque", icon: BookCheck, href: "/expenses/new?mode=cheque" },
+      { label: "Bill", icon: Receipt, href: "/bills/new" },
+      { label: "Pay bills", icon: Banknote, href: "/payments/new" },
+      { label: "Purchase order", icon: Package, href: "/purchase-orders/new" },
+      { label: "Supplier credit", icon: FilePlus, href: "/vendor-credits/new" },
       { label: "Credit card credit", icon: CreditCard, href: "/expenses/new?mode=cc-credit" },
-      { label: "Add supplier",     icon: Building2,    href: "/vendors" },
+      { label: "Add supplier", icon: Building2, href: "/vendors" },
     ],
   },
   {
     title: "Other",
     items: [
-      { label: "Bank deposit",          icon: Landmark,      href: "/banking" },
-      { label: "Transfer",              icon: ArrowLeftRight, href: "/transfers/new" },
-      { label: "Journal entry",         icon: BookOpen,      href: "/journal-entries/new" },
-      { label: "Pay down credit card",  icon: CreditCard,    href: "/transfers/new?mode=cc" },
-      { label: "Add product/service",   icon: Package,       soon: true },
+      { label: "Bank deposit", icon: Landmark, href: "/banking" },
+      { label: "Transfer", icon: ArrowLeftRight, href: "/transfers/new" },
+      { label: "Journal entry", icon: BookOpen, href: "/journal-entries/new" },
+      { label: "Pay down credit card", icon: CreditCard, href: "/transfers/new?mode=cc" },
+      { label: "Add product/service", icon: Package, soon: true },
     ],
   },
 ];
@@ -85,7 +101,10 @@ export function CreateMenu() {
   function handleItem(item: MenuItem) {
     setOpen(false);
     if (item.soon) {
-      toast({ title: `${item.label} — coming soon`, description: "This feature is on the roadmap." });
+      toast({
+        title: `${item.label} — coming soon`,
+        description: "This feature is on the roadmap.",
+      });
       return;
     }
     if (item.href) navigate(item.href);
@@ -95,7 +114,7 @@ export function CreateMenu() {
     <div ref={ref} className="relative">
       <Button
         size="sm"
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setOpen((v) => !v)}
         className="gap-1.5 font-semibold shadow-sm"
         data-create-menu
       >
@@ -121,7 +140,7 @@ export function CreateMenu() {
 
             {/* Category columns */}
             <div className="grid grid-cols-3 divide-x divide-border">
-              {CATEGORIES.map(cat => (
+              {CATEGORIES.map((cat) => (
                 <div key={cat.title} className="flex flex-col">
                   {/* Category heading */}
                   <div className="px-4 pt-4 pb-2">
@@ -132,7 +151,7 @@ export function CreateMenu() {
 
                   {/* Items */}
                   <ul className="flex flex-col pb-4 flex-1">
-                    {cat.items.map(item => {
+                    {cat.items.map((item) => {
                       const Icon = item.icon;
                       return (
                         <li key={item.label}>

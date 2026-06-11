@@ -51,7 +51,9 @@ export default function LoginPage() {
 
           {/* Form area */}
           <div className="bg-white px-6 py-6">
-            <h2 className="text-base font-semibold text-foreground mb-4">Sign in to your account</h2>
+            <h2 className="text-base font-semibold text-foreground mb-4">
+              Sign in to your account
+            </h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-1">
                 <Label htmlFor="email">Email</Label>
@@ -59,7 +61,7 @@ export default function LoginPage() {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                 />
               </div>
@@ -69,7 +71,7 @@ export default function LoginPage() {
                   id="password"
                   type="password"
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
                 />
               </div>
@@ -83,7 +85,9 @@ export default function LoginPage() {
 
         <p className="mt-4 text-center text-xs text-muted-foreground">
           Don't have an account?{" "}
-          <Link href="/signup" className="text-primary hover:underline font-medium">Create one</Link>
+          <Link href="/signup" className="text-primary hover:underline font-medium">
+            Create one
+          </Link>
         </p>
       </div>
     </main>

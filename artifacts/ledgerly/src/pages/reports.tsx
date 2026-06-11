@@ -3,23 +3,46 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch, formatCents } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface ReportRow {
-  id: string; code: string; name: string; amountCents: number; depth: number; isSubtotal?: boolean;
+  id: string;
+  code: string;
+  name: string;
+  amountCents: number;
+  depth: number;
+  isSubtotal?: boolean;
 }
 
-interface ReportSection { label: string; rows: ReportRow[]; total: number; }
+interface ReportSection {
+  label: string;
+  rows: ReportRow[];
+  total: number;
+}
 
 interface ProfitLoss {
-  income: ReportSection; expenses: ReportSection; netIncomeCents: number; start: string | null; end: string | null;
+  income: ReportSection;
+  expenses: ReportSection;
+  netIncomeCents: number;
+  start: string | null;
+  end: string | null;
 }
 
 interface BalanceSheet {
-  assets: ReportSection; liabilities: ReportSection; equity: ReportSection; asOf: string;
+  assets: ReportSection;
+  liabilities: ReportSection;
+  equity: ReportSection;
+  asOf: string;
 }
 
 function SectionTable({ section }: { section: ReportSection }) {
@@ -32,10 +55,12 @@ function SectionTable({ section }: { section: ReportSection }) {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {section.rows.map(r => (
+        {section.rows.map((r) => (
           <TableRow key={r.id} className={r.isSubtotal ? "bg-muted/30 font-medium" : ""}>
             <TableCell style={{ paddingLeft: `${(r.depth + 1) * 16}px` }}>
-              {r.code && !r.isSubtotal && <span className="text-muted-foreground mr-2 font-mono text-xs">{r.code}</span>}
+              {r.code && !r.isSubtotal && (
+                <span className="text-muted-foreground mr-2 font-mono text-xs">{r.code}</span>
+              )}
               {r.name}
             </TableCell>
             <TableCell className="text-right tabular-nums">
@@ -44,7 +69,9 @@ function SectionTable({ section }: { section: ReportSection }) {
           </TableRow>
         ))}
         <TableRow className="border-t-2 font-bold">
-          <TableCell>Total {section.label.charAt(0) + section.label.slice(1).toLowerCase()}</TableCell>
+          <TableCell>
+            Total {section.label.charAt(0) + section.label.slice(1).toLowerCase()}
+          </TableCell>
           <TableCell className="text-right tabular-nums">{formatCents(section.total)}</TableCell>
         </TableRow>
       </TableBody>
@@ -65,8 +92,24 @@ function ProfitLossReport() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-end">
-        <div className="space-y-1"><Label>From</Label><Input type="date" value={start} onChange={e => setStart(e.target.value)} className="w-36" /></div>
-        <div className="space-y-1"><Label>To</Label><Input type="date" value={end} onChange={e => setEnd(e.target.value)} className="w-36" /></div>
+        <div className="space-y-1">
+          <Label>From</Label>
+          <Input
+            type="date"
+            value={start}
+            onChange={(e) => setStart(e.target.value)}
+            className="w-36"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label>To</Label>
+          <Input
+            type="date"
+            value={end}
+            onChange={(e) => setEnd(e.target.value)}
+            className="w-36"
+          />
+        </div>
         <Button onClick={() => refetch()} disabled={isFetching}>
           {isFetching ? "Loading…" : "Run report"}
         </Button>
@@ -75,18 +118,28 @@ function ProfitLossReport() {
       {data && (
         <>
           <Card>
-            <CardHeader><CardTitle className="text-base">Income</CardTitle></CardHeader>
-            <CardContent className="p-0"><SectionTable section={data.income} /></CardContent>
+            <CardHeader>
+              <CardTitle className="text-base">Income</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <SectionTable section={data.income} />
+            </CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle className="text-base">Expenses</CardTitle></CardHeader>
-            <CardContent className="p-0"><SectionTable section={data.expenses} /></CardContent>
+            <CardHeader>
+              <CardTitle className="text-base">Expenses</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <SectionTable section={data.expenses} />
+            </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-5">
               <div className="flex justify-between font-bold text-lg">
                 <span>Net Income</span>
-                <span className={`tabular-nums ${data.netIncomeCents < 0 ? "text-destructive" : "text-green-600"}`}>
+                <span
+                  className={`tabular-nums ${data.netIncomeCents < 0 ? "text-destructive" : "text-green-600"}`}
+                >
                   {formatCents(data.netIncomeCents)}
                 </span>
               </div>
@@ -110,7 +163,15 @@ function BalanceSheetReport() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-end">
-        <div className="space-y-1"><Label>As of</Label><Input type="date" value={asOf} onChange={e => setAsOf(e.target.value)} className="w-36" /></div>
+        <div className="space-y-1">
+          <Label>As of</Label>
+          <Input
+            type="date"
+            value={asOf}
+            onChange={(e) => setAsOf(e.target.value)}
+            className="w-36"
+          />
+        </div>
         <Button onClick={() => refetch()} disabled={isFetching}>
           {isFetching ? "Loading…" : "Run report"}
         </Button>
@@ -119,16 +180,28 @@ function BalanceSheetReport() {
       {data && (
         <>
           <Card>
-            <CardHeader><CardTitle className="text-base">Assets</CardTitle></CardHeader>
-            <CardContent className="p-0"><SectionTable section={data.assets} /></CardContent>
+            <CardHeader>
+              <CardTitle className="text-base">Assets</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <SectionTable section={data.assets} />
+            </CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle className="text-base">Liabilities</CardTitle></CardHeader>
-            <CardContent className="p-0"><SectionTable section={data.liabilities} /></CardContent>
+            <CardHeader>
+              <CardTitle className="text-base">Liabilities</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <SectionTable section={data.liabilities} />
+            </CardContent>
           </Card>
           <Card>
-            <CardHeader><CardTitle className="text-base">Equity</CardTitle></CardHeader>
-            <CardContent className="p-0"><SectionTable section={data.equity} /></CardContent>
+            <CardHeader>
+              <CardTitle className="text-base">Equity</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <SectionTable section={data.equity} />
+            </CardContent>
           </Card>
         </>
       )}
@@ -149,8 +222,12 @@ export default function ReportsPage() {
           <TabsTrigger value="pl">Profit & Loss</TabsTrigger>
           <TabsTrigger value="bs">Balance Sheet</TabsTrigger>
         </TabsList>
-        <TabsContent value="pl"><ProfitLossReport /></TabsContent>
-        <TabsContent value="bs"><BalanceSheetReport /></TabsContent>
+        <TabsContent value="pl">
+          <ProfitLossReport />
+        </TabsContent>
+        <TabsContent value="bs">
+          <BalanceSheetReport />
+        </TabsContent>
       </Tabs>
     </>
   );

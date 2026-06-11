@@ -11,7 +11,20 @@ export interface PostEntryInput {
   organizationId: string;
   date: Date;
   memo?: string;
-  sourceType: "INVOICE" | "BILL" | "PAYMENT" | "MANUAL" | "ADJUSTMENT" | "BANK" | "EXPENSE" | "SALES_RECEIPT" | "REFUND_RECEIPT" | "CREDIT_NOTE" | "VENDOR_CREDIT" | "CC_CREDIT" | "TRANSFER";
+  sourceType:
+    | "INVOICE"
+    | "BILL"
+    | "PAYMENT"
+    | "MANUAL"
+    | "ADJUSTMENT"
+    | "BANK"
+    | "EXPENSE"
+    | "SALES_RECEIPT"
+    | "REFUND_RECEIPT"
+    | "CREDIT_NOTE"
+    | "VENDOR_CREDIT"
+    | "CC_CREDIT"
+    | "TRANSFER";
   sourceId?: string;
   lines: PostLine[];
   isReversal?: boolean;
@@ -29,26 +42,31 @@ function validateLines(lines: PostLine[]) {
 // transaction so a mid-write failure can't orphan a journal entry. Callers that
 // already hold a transaction pass it in and own commit/rollback.
 export async function postEntry(input: PostEntryInput, executor?: DbOrTx) {
-  const lines = input.lines.filter(l => l.debitCents !== 0 || l.creditCents !== 0);
+  const lines = input.lines.filter((l) => l.debitCents !== 0 || l.creditCents !== 0);
   validateLines(lines);
 
   const write = async (tx: DbOrTx) => {
-    const [entry] = await tx.insert(journalEntries).values({
-      organizationId: input.organizationId,
-      date: input.date,
-      memo: input.memo,
-      sourceType: input.sourceType,
-      sourceId: input.sourceId,
-      isReversal: input.isReversal ?? false,
-      reversedEntryId: input.reversedEntryId,
-    }).returning();
+    const [entry] = await tx
+      .insert(journalEntries)
+      .values({
+        organizationId: input.organizationId,
+        date: input.date,
+        memo: input.memo,
+        sourceType: input.sourceType,
+        sourceId: input.sourceId,
+        isReversal: input.isReversal ?? false,
+        reversedEntryId: input.reversedEntryId,
+      })
+      .returning();
 
-    await tx.insert(journalLines).values(lines.map(l => ({
-      journalEntryId: entry.id,
-      accountId: l.accountId,
-      debitCents: l.debitCents,
-      creditCents: l.creditCents,
-    })));
+    await tx.insert(journalLines).values(
+      lines.map((l) => ({
+        journalEntryId: entry.id,
+        accountId: l.accountId,
+        debitCents: l.debitCents,
+        creditCents: l.creditCents,
+      })),
+    );
 
     return entry;
   };
@@ -58,48 +76,60 @@ export async function postEntry(input: PostEntryInput, executor?: DbOrTx) {
 
 type SystemRole = NonNullable<(typeof accounts.$inferSelect)["systemRole"]>;
 
-export async function findSystemAccount(organizationId: string, role: SystemRole, executor: DbOrTx = db) {
-  const results = await executor.select().from(accounts).where(
-    and(
-      eq(accounts.organizationId, organizationId),
-      eq(accounts.systemRole, role)
-    )
-  );
+export async function findSystemAccount(
+  organizationId: string,
+  role: SystemRole,
+  executor: DbOrTx = db,
+) {
+  const results = await executor
+    .select()
+    .from(accounts)
+    .where(and(eq(accounts.organizationId, organizationId), eq(accounts.systemRole, role)));
   if (!results[0]) throw new Error(`System account not found: ${role}`);
   return results[0];
 }
 
 // Opening Balance Equity is the conventional offset account for opening balances
 // brought in via a trial balance import. Find it by name, or create it.
-export async function findOrCreateOpeningBalanceEquity(organizationId: string, executor: DbOrTx = db) {
-  const existing = await executor.select().from(accounts).where(
-    and(eq(accounts.organizationId, organizationId), eq(accounts.name, "Opening Balance Equity"))
-  );
+export async function findOrCreateOpeningBalanceEquity(
+  organizationId: string,
+  executor: DbOrTx = db,
+) {
+  const existing = await executor
+    .select()
+    .from(accounts)
+    .where(
+      and(eq(accounts.organizationId, organizationId), eq(accounts.name, "Opening Balance Equity")),
+    );
   if (existing[0]) return existing[0];
 
   // Pick a non-colliding code in the equity (3xxx) range.
-  const equityAccts = await executor.select().from(accounts).where(
-    and(eq(accounts.organizationId, organizationId), eq(accounts.type, "EQUITY"))
-  );
-  const used = new Set(equityAccts.map(a => a.code));
+  const equityAccts = await executor
+    .select()
+    .from(accounts)
+    .where(and(eq(accounts.organizationId, organizationId), eq(accounts.type, "EQUITY")));
+  const used = new Set(equityAccts.map((a) => a.code));
   let code = "3900";
   for (let i = 3900; i <= 3999 && used.has(code); i++) code = String(i);
 
-  const [created] = await executor.insert(accounts).values({
-    organizationId,
-    code,
-    name: "Opening Balance Equity",
-    type: "EQUITY",
-    subtype: "equity",
-    cashFlowCategory: "NONE",
-    sortOrder: 390,
-  }).returning();
+  const [created] = await executor
+    .insert(accounts)
+    .values({
+      organizationId,
+      code,
+      name: "Opening Balance Equity",
+      type: "EQUITY",
+      subtype: "equity",
+      cashFlowCategory: "NONE",
+      sortOrder: 390,
+    })
+    .returning();
   return created;
 }
 
 export async function getNetDebitByAccount(
   organizationId: string,
-  dateFilter: { gte?: Date; lte?: Date; lt?: Date } = {}
+  dateFilter: { gte?: Date; lte?: Date; lt?: Date } = {},
 ): Promise<Map<string, number>> {
   const { gte, lte, lt } = dateFilter;
 

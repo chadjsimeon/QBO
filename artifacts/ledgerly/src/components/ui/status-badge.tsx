@@ -6,7 +6,9 @@ type StatusBadgeProps = {
   className?: string;
 };
 
-function getStatusVariant(status: string): "success" | "warning" | "destructive" | "secondary" | "muted" {
+function getStatusVariant(
+  status: string,
+): "success" | "warning" | "destructive" | "secondary" | "muted" {
   const s = status.toUpperCase();
   if (s === "PAID" || s === "POSTED" || s === "RECEIVED") return "success";
   if (s === "PARTIAL" || s === "PENDING") return "warning";

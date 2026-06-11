@@ -29,7 +29,10 @@ export async function createTestOrg(label = "org"): Promise<TestOrg> {
 
   const res = await agent.get("/api/accounts").expect(200);
   const accounts = new Map(
-    (res.body as Array<{ id: string; code: string; name: string; type: string }>).map(a => [a.code, a]),
+    (res.body as Array<{ id: string; code: string; name: string; type: string }>).map((a) => [
+      a.code,
+      a,
+    ]),
   );
 
   return { agent, email, organizationId: login.body.organizationId, accounts };

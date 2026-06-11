@@ -10,8 +10,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 interface SearchResults {
   customers: Array<{ id: string; name: string; email: string | null }>;
   vendors: Array<{ id: string; name: string; email: string | null }>;
-  invoices: Array<{ id: string; number: string; customerName: string | null; totalCents: number; status: string }>;
-  bills: Array<{ id: string; number: string; vendorName: string | null; totalCents: number; status: string }>;
+  invoices: Array<{
+    id: string;
+    number: string;
+    customerName: string | null;
+    totalCents: number;
+    status: string;
+  }>;
+  bills: Array<{
+    id: string;
+    number: string;
+    vendorName: string | null;
+    totalCents: number;
+    status: string;
+  }>;
 }
 
 export default function SearchPage() {
@@ -23,7 +35,9 @@ export default function SearchPage() {
     enabled: q.length >= 2,
   });
 
-  const hasResults = data && (data.customers.length + data.vendors.length + data.invoices.length + data.bills.length > 0);
+  const hasResults =
+    data &&
+    data.customers.length + data.vendors.length + data.invoices.length + data.bills.length > 0;
 
   return (
     <>
@@ -37,7 +51,7 @@ export default function SearchPage() {
           className="pl-10"
           placeholder="Search customers, vendors, invoices, bills…"
           value={q}
-          onChange={e => setQ(e.target.value)}
+          onChange={(e) => setQ(e.target.value)}
         />
       </div>
 
@@ -49,9 +63,11 @@ export default function SearchPage() {
         <div className="space-y-4">
           {data!.customers.length > 0 && (
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Customers</CardTitle></CardHeader>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Customers</CardTitle>
+              </CardHeader>
               <CardContent className="pt-0 space-y-1">
-                {data!.customers.map(c => (
+                {data!.customers.map((c) => (
                   <Link key={c.id} href="/customers">
                     <div className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted cursor-pointer">
                       <span className="font-medium text-sm">{c.name}</span>
@@ -65,9 +81,11 @@ export default function SearchPage() {
 
           {data!.vendors.length > 0 && (
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Vendors</CardTitle></CardHeader>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Vendors</CardTitle>
+              </CardHeader>
               <CardContent className="pt-0 space-y-1">
-                {data!.vendors.map(v => (
+                {data!.vendors.map((v) => (
                   <Link key={v.id} href="/vendors">
                     <div className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted cursor-pointer">
                       <span className="font-medium text-sm">{v.name}</span>
@@ -81,14 +99,20 @@ export default function SearchPage() {
 
           {data!.invoices.length > 0 && (
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Invoices</CardTitle></CardHeader>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Invoices</CardTitle>
+              </CardHeader>
               <CardContent className="pt-0 space-y-1">
-                {data!.invoices.map(inv => (
+                {data!.invoices.map((inv) => (
                   <Link key={inv.id} href={`/invoices/${inv.id}`}>
                     <div className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted cursor-pointer">
-                      <span className="font-medium text-sm">{inv.number} · {inv.customerName}</span>
+                      <span className="font-medium text-sm">
+                        {inv.number} · {inv.customerName}
+                      </span>
                       <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="text-xs">{inv.status}</Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          {inv.status}
+                        </Badge>
                         <span className="text-sm tabular-nums">{formatCents(inv.totalCents)}</span>
                       </div>
                     </div>
@@ -100,14 +124,20 @@ export default function SearchPage() {
 
           {data!.bills.length > 0 && (
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Bills</CardTitle></CardHeader>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Bills</CardTitle>
+              </CardHeader>
               <CardContent className="pt-0 space-y-1">
-                {data!.bills.map(bill => (
+                {data!.bills.map((bill) => (
                   <Link key={bill.id} href="/bills">
                     <div className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted cursor-pointer">
-                      <span className="font-medium text-sm">{bill.number} · {bill.vendorName}</span>
+                      <span className="font-medium text-sm">
+                        {bill.number} · {bill.vendorName}
+                      </span>
                       <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="text-xs">{bill.status}</Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          {bill.status}
+                        </Badge>
                         <span className="text-sm tabular-nums">{formatCents(bill.totalCents)}</span>
                       </div>
                     </div>

@@ -1,8 +1,21 @@
 import { Link, useLocation } from "wouter";
 import {
-  LayoutDashboard, FileText, Receipt, CreditCard,
-  Users, Building2, BookOpen, Landmark, BarChart3, FileBarChart,
-  BookText, Scale, LogOut, Menu, X, Search,
+  LayoutDashboard,
+  FileText,
+  Receipt,
+  CreditCard,
+  Users,
+  Building2,
+  BookOpen,
+  Landmark,
+  BarChart3,
+  FileBarChart,
+  BookText,
+  Scale,
+  LogOut,
+  Menu,
+  X,
+  Search,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -10,21 +23,31 @@ import { CreateMenu } from "@/components/create-menu";
 import { useState } from "react";
 
 const NAV = [
-  { label: "Home",               href: "/dashboard",           icon: LayoutDashboard },
-  { label: "Invoices",           href: "/invoices",            icon: FileText },
-  { label: "Bills",              href: "/bills",               icon: Receipt },
-  { label: "Payments",           href: "/payments",            icon: CreditCard },
-  { label: "Customers",          href: "/customers",           icon: Users },
-  { label: "Vendors",            href: "/vendors",             icon: Building2 },
-  { label: "Accounts",           href: "/accounts",            icon: BookOpen },
-  { label: "General Ledger",     href: "/general-ledger",      icon: BookText },
-  { label: "Trial Balance",      href: "/trial-balance",       icon: Scale },
-  { label: "Banking",            href: "/banking",             icon: Landmark },
-  { label: "Reports",            href: "/reports",             icon: BarChart3 },
-  { label: "Mgmt Reports",       href: "/management-reports",  icon: FileBarChart },
+  { label: "Home", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Invoices", href: "/invoices", icon: FileText },
+  { label: "Bills", href: "/bills", icon: Receipt },
+  { label: "Payments", href: "/payments", icon: CreditCard },
+  { label: "Customers", href: "/customers", icon: Users },
+  { label: "Vendors", href: "/vendors", icon: Building2 },
+  { label: "Accounts", href: "/accounts", icon: BookOpen },
+  { label: "General Ledger", href: "/general-ledger", icon: BookText },
+  { label: "Trial Balance", href: "/trial-balance", icon: Scale },
+  { label: "Banking", href: "/banking", icon: Landmark },
+  { label: "Reports", href: "/reports", icon: BarChart3 },
+  { label: "Mgmt Reports", href: "/management-reports", icon: FileBarChart },
 ];
 
-function NavItem({ href, icon: Icon, label, close }: { href: string; icon: React.ElementType; label: string; close?: () => void }) {
+function NavItem({
+  href,
+  icon: Icon,
+  label,
+  close,
+}: {
+  href: string;
+  icon: React.ElementType;
+  label: string;
+  close?: () => void;
+}) {
   const [location] = useLocation();
   const active = location === href || (href !== "/dashboard" && location.startsWith(href));
   return (
@@ -65,7 +88,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Nav links */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
-        {NAV.map(n => (
+        {NAV.map((n) => (
           <NavItem key={n.href} {...n} close={() => setSidebarOpen(false)} />
         ))}
       </div>
@@ -93,9 +116,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-56 flex-col shrink-0">
-        {sidebar}
-      </aside>
+      <aside className="hidden lg:flex w-56 flex-col shrink-0">{sidebar}</aside>
 
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -104,10 +125,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           onClick={() => setSidebarOpen(false)}
         />
       )}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-56 flex flex-col lg:hidden transform transition-transform ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-56 flex flex-col lg:hidden transform transition-transform ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+      >
         <div className="flex justify-end px-3 pt-3 bg-sidebar border-b border-sidebar-border">
-          <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(false)}
-            className="text-sidebar-foreground hover:bg-sidebar-accent">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSidebarOpen(false)}
+            className="text-sidebar-foreground hover:bg-sidebar-accent"
+          >
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -117,10 +144,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Topbar */}
         <header className="h-14 border-b flex items-center gap-3 px-4 bg-background shrink-0 shadow-sm">
-          <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            onClick={() => setSidebarOpen(true)}
+          >
             <Menu className="h-5 w-5" />
           </Button>
-          <Link href="/search" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground border rounded-md px-3 py-1.5 ml-2 bg-muted/40 min-w-[200px]">
+          <Link
+            href="/search"
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground border rounded-md px-3 py-1.5 ml-2 bg-muted/40 min-w-[200px]"
+          >
             <Search className="h-3.5 w-3.5 shrink-0" />
             Search…
           </Link>
@@ -128,7 +163,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <CreateMenu />
           {user?.organizationName && (
             <div className="hidden sm:flex items-center gap-2">
-              <span className="text-sm text-muted-foreground font-medium">{user.organizationName}</span>
+              <span className="text-sm text-muted-foreground font-medium">
+                {user.organizationName}
+              </span>
               <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold select-none">
                 {user.organizationName.charAt(0).toUpperCase()}
               </div>
@@ -137,9 +174,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         <main className="flex-1 overflow-x-hidden bg-muted/20">
-          <div className="mx-auto max-w-6xl px-4 py-8 lg:px-6">
-            {children}
-          </div>
+          <div className="mx-auto max-w-6xl px-4 py-8 lg:px-6">{children}</div>
         </main>
       </div>
     </div>

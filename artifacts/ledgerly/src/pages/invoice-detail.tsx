@@ -6,27 +6,57 @@ import { apiFetch, formatCents, formatDate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
-  DRAFT: "secondary", SENT: "default", PARTIAL: "outline", PAID: "outline",
-  OVERDUE: "destructive", VOID: "secondary",
+  DRAFT: "secondary",
+  SENT: "default",
+  PARTIAL: "outline",
+  PAID: "outline",
+  OVERDUE: "destructive",
+  VOID: "secondary",
 };
 
 interface LineItem {
-  id: string; description: string; quantity: number; unitPriceCents: number;
-  amountCents: number; taxCents: number;
+  id: string;
+  description: string;
+  quantity: number;
+  unitPriceCents: number;
+  amountCents: number;
+  taxCents: number;
 }
 
 interface Invoice {
-  id: string; number: string; customerId: string; customerName: string | null;
-  status: string; issueDate: string; dueDate: string;
-  subtotalCents: number; taxCents: number; totalCents: number; balanceCents: number;
+  id: string;
+  number: string;
+  customerId: string;
+  customerName: string | null;
+  status: string;
+  issueDate: string;
+  dueDate: string;
+  subtotalCents: number;
+  taxCents: number;
+  totalCents: number;
+  balanceCents: number;
   lineItems: LineItem[];
 }
 
@@ -37,7 +67,11 @@ export default function InvoiceDetailPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
 
-  const { data: invoice, isLoading, error } = useQuery({
+  const {
+    data: invoice,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["invoice", id],
     queryFn: () => apiFetch<Invoice>(`/invoices/${id}`),
     enabled: !!id,
@@ -45,20 +79,34 @@ export default function InvoiceDetailPage() {
 
   const issueMutation = useMutation({
     mutationFn: () => apiFetch(`/invoices/${id}/issue`, { method: "POST" }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["invoice", id] }); qc.invalidateQueries({ queryKey: ["invoices"] }); toast({ title: "Invoice issued" }); },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invoice", id] });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      toast({ title: "Invoice issued" });
+    },
+    onError: (e: Error) =>
+      toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const voidMutation = useMutation({
     mutationFn: () => apiFetch(`/invoices/${id}/void`, { method: "POST" }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["invoice", id] }); qc.invalidateQueries({ queryKey: ["invoices"] }); toast({ title: "Invoice voided" }); },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invoice", id] });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      toast({ title: "Invoice voided" });
+    },
+    onError: (e: Error) =>
+      toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: () => apiFetch(`/invoices/${id}`, { method: "DELETE" }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["invoices"] }); navigate("/invoices"); },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      navigate("/invoices");
+    },
+    onError: (e: Error) =>
+      toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   if (isLoading) return <div className="text-sm text-muted-foreground">Loading…</div>;
@@ -70,14 +118,18 @@ export default function InvoiceDetailPage() {
   return (
     <>
       <div className="mb-6">
-        <Link href="/invoices" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
+        <Link
+          href="/invoices"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
+        >
           <ArrowLeft className="h-3 w-3" /> Back to invoices
         </Link>
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold">Invoice {invoice.number}</h1>
             <p className="text-sm text-muted-foreground">
-              {invoice.customerName} · Issued {formatDate(invoice.issueDate)} · Due {formatDate(invoice.dueDate)}
+              {invoice.customerName} · Issued {formatDate(invoice.issueDate)} · Due{" "}
+              {formatDate(invoice.dueDate)}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -85,14 +137,18 @@ export default function InvoiceDetailPage() {
             {isDraft && (
               <>
                 <Button variant="outline" asChild>
-                  <Link href={`/invoices/${id}/edit`}><Pencil className="h-4 w-4 mr-1" /> Edit</Link>
+                  <Link href={`/invoices/${id}/edit`}>
+                    <Pencil className="h-4 w-4 mr-1" /> Edit
+                  </Link>
                 </Button>
                 <Button onClick={() => issueMutation.mutate()} disabled={issueMutation.isPending}>
                   <Send className="h-4 w-4 mr-1" /> {issueMutation.isPending ? "Issuing…" : "Issue"}
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+                    <Button variant="ghost" size="icon">
+                      <Trash2 className="h-4 w-4 text-muted-foreground" />
+                    </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
@@ -101,7 +157,12 @@ export default function InvoiceDetailPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+                      <AlertDialogAction
+                        onClick={() => deleteMutation.mutate()}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete
+                      </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
@@ -110,16 +171,25 @@ export default function InvoiceDetailPage() {
             {!isDraft && !isVoid && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="destructive"><Ban className="h-4 w-4 mr-1" /> Void</Button>
+                  <Button variant="destructive">
+                    <Ban className="h-4 w-4 mr-1" /> Void
+                  </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Void this invoice?</AlertDialogTitle>
-                    <AlertDialogDescription>A reversing journal entry will be posted. This cannot be undone.</AlertDialogDescription>
+                    <AlertDialogDescription>
+                      A reversing journal entry will be posted. This cannot be undone.
+                    </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => voidMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Void invoice</AlertDialogAction>
+                    <AlertDialogAction
+                      onClick={() => voidMutation.mutate()}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Void invoice
+                    </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
@@ -129,7 +199,9 @@ export default function InvoiceDetailPage() {
       </div>
 
       <Card className="mb-6">
-        <CardHeader><CardTitle>Line items</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Line items</CardTitle>
+        </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -142,13 +214,19 @@ export default function InvoiceDetailPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {invoice.lineItems.map(li => (
+              {invoice.lineItems.map((li) => (
                 <TableRow key={li.id}>
                   <TableCell>{li.description}</TableCell>
                   <TableCell className="text-right tabular-nums">{li.quantity}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatCents(li.unitPriceCents)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{li.taxCents > 0 ? formatCents(li.taxCents) : "—"}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatCents(li.amountCents)}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatCents(li.unitPriceCents)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {li.taxCents > 0 ? formatCents(li.taxCents) : "—"}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatCents(li.amountCents)}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

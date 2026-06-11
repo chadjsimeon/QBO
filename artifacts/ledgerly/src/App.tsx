@@ -85,149 +85,241 @@ function AppRouter() {
     <Switch>
       <Route path="/login" component={LoginPage} />
       <Route path="/signup" component={SignupPage} />
-      <Route path="/">
-        {user ? <Redirect to="/dashboard" /> : <Redirect to="/login" />}
-      </Route>
+      <Route path="/">{user ? <Redirect to="/dashboard" /> : <Redirect to="/login" />}</Route>
       <Route path="/dashboard">
-        <AuthGuard><DashboardPage /></AuthGuard>
+        <AuthGuard>
+          <DashboardPage />
+        </AuthGuard>
       </Route>
       <Route path="/customers">
-        <AuthGuard><CustomersPage /></AuthGuard>
+        <AuthGuard>
+          <CustomersPage />
+        </AuthGuard>
       </Route>
       <Route path="/vendors">
-        <AuthGuard><VendorsPage /></AuthGuard>
+        <AuthGuard>
+          <VendorsPage />
+        </AuthGuard>
       </Route>
       <Route path="/accounts">
-        <AuthGuard><AccountsPage /></AuthGuard>
+        <AuthGuard>
+          <AccountsPage />
+        </AuthGuard>
       </Route>
       <Route path="/invoices/new">
-        <AuthGuard><InvoiceFormPage /></AuthGuard>
+        <AuthGuard>
+          <InvoiceFormPage />
+        </AuthGuard>
       </Route>
       <Route path="/invoices/:id/edit">
-        <AuthGuard><InvoiceFormPage /></AuthGuard>
+        <AuthGuard>
+          <InvoiceFormPage />
+        </AuthGuard>
       </Route>
       <Route path="/invoices/:id">
-        <AuthGuard><InvoiceDetailPage /></AuthGuard>
+        <AuthGuard>
+          <InvoiceDetailPage />
+        </AuthGuard>
       </Route>
       <Route path="/invoices">
-        <AuthGuard><InvoicesPage /></AuthGuard>
+        <AuthGuard>
+          <InvoicesPage />
+        </AuthGuard>
       </Route>
       <Route path="/bills/new">
-        <AuthGuard><BillFormPage /></AuthGuard>
+        <AuthGuard>
+          <BillFormPage />
+        </AuthGuard>
       </Route>
       <Route path="/bills/:id/edit">
-        <AuthGuard><BillFormPage /></AuthGuard>
+        <AuthGuard>
+          <BillFormPage />
+        </AuthGuard>
       </Route>
       <Route path="/bills/:id">
-        <AuthGuard><BillDetailPage /></AuthGuard>
+        <AuthGuard>
+          <BillDetailPage />
+        </AuthGuard>
       </Route>
       <Route path="/bills">
-        <AuthGuard><BillsPage /></AuthGuard>
+        <AuthGuard>
+          <BillsPage />
+        </AuthGuard>
       </Route>
       <Route path="/payments/new">
-        <AuthGuard><PaymentFormPage /></AuthGuard>
+        <AuthGuard>
+          <PaymentFormPage />
+        </AuthGuard>
       </Route>
       <Route path="/payments">
-        <AuthGuard><PaymentsPage /></AuthGuard>
+        <AuthGuard>
+          <PaymentsPage />
+        </AuthGuard>
       </Route>
       <Route path="/banking/import">
-        <AuthGuard><BankImportPage /></AuthGuard>
+        <AuthGuard>
+          <BankImportPage />
+        </AuthGuard>
       </Route>
       <Route path="/banking/:id">
-        <AuthGuard><BankAccountReviewPage /></AuthGuard>
+        <AuthGuard>
+          <BankAccountReviewPage />
+        </AuthGuard>
       </Route>
       <Route path="/banking">
-        <AuthGuard><BankingPage /></AuthGuard>
+        <AuthGuard>
+          <BankingPage />
+        </AuthGuard>
       </Route>
       <Route path="/journal-entries/new">
-        <AuthGuard><JournalEntryFormPage /></AuthGuard>
+        <AuthGuard>
+          <JournalEntryFormPage />
+        </AuthGuard>
       </Route>
       <Route path="/journal-entries/:id">
-        <AuthGuard><JournalEntryDetailPage /></AuthGuard>
+        <AuthGuard>
+          <JournalEntryDetailPage />
+        </AuthGuard>
       </Route>
       <Route path="/journal-entries">
-        <AuthGuard><JournalEntriesPage /></AuthGuard>
+        <AuthGuard>
+          <JournalEntriesPage />
+        </AuthGuard>
       </Route>
       <Route path="/transfers/new">
-        <AuthGuard><TransferFormPage /></AuthGuard>
+        <AuthGuard>
+          <TransferFormPage />
+        </AuthGuard>
       </Route>
       <Route path="/expenses/new">
-        <AuthGuard><ExpenseFormPage /></AuthGuard>
+        <AuthGuard>
+          <ExpenseFormPage />
+        </AuthGuard>
       </Route>
       <Route path="/expenses/:id">
-        <AuthGuard><ExpenseDetailPage /></AuthGuard>
+        <AuthGuard>
+          <ExpenseDetailPage />
+        </AuthGuard>
       </Route>
       <Route path="/expenses">
-        <AuthGuard><ExpensesPage /></AuthGuard>
+        <AuthGuard>
+          <ExpensesPage />
+        </AuthGuard>
       </Route>
       <Route path="/sales-receipts/new">
-        <AuthGuard><SalesReceiptFormPage /></AuthGuard>
+        <AuthGuard>
+          <SalesReceiptFormPage />
+        </AuthGuard>
       </Route>
       <Route path="/sales-receipts/:id">
-        <AuthGuard><SalesReceiptDetailPage /></AuthGuard>
+        <AuthGuard>
+          <SalesReceiptDetailPage />
+        </AuthGuard>
       </Route>
       <Route path="/sales-receipts">
-        <AuthGuard><SalesReceiptsPage /></AuthGuard>
+        <AuthGuard>
+          <SalesReceiptsPage />
+        </AuthGuard>
       </Route>
       <Route path="/credit-notes/new">
-        <AuthGuard><CreditNoteFormPage /></AuthGuard>
+        <AuthGuard>
+          <CreditNoteFormPage />
+        </AuthGuard>
       </Route>
       <Route path="/credit-notes/:id">
-        <AuthGuard><CreditNoteDetailPage /></AuthGuard>
+        <AuthGuard>
+          <CreditNoteDetailPage />
+        </AuthGuard>
       </Route>
       <Route path="/credit-notes">
-        <AuthGuard><CreditNotesPage /></AuthGuard>
+        <AuthGuard>
+          <CreditNotesPage />
+        </AuthGuard>
       </Route>
       <Route path="/vendor-credits/new">
-        <AuthGuard><VendorCreditFormPage /></AuthGuard>
+        <AuthGuard>
+          <VendorCreditFormPage />
+        </AuthGuard>
       </Route>
       <Route path="/vendor-credits/:id">
-        <AuthGuard><VendorCreditDetailPage /></AuthGuard>
+        <AuthGuard>
+          <VendorCreditDetailPage />
+        </AuthGuard>
       </Route>
       <Route path="/vendor-credits">
-        <AuthGuard><VendorCreditsPage /></AuthGuard>
+        <AuthGuard>
+          <VendorCreditsPage />
+        </AuthGuard>
       </Route>
       <Route path="/estimates/new">
-        <AuthGuard><EstimateFormPage /></AuthGuard>
+        <AuthGuard>
+          <EstimateFormPage />
+        </AuthGuard>
       </Route>
       <Route path="/estimates/:id">
-        <AuthGuard><EstimateDetailPage /></AuthGuard>
+        <AuthGuard>
+          <EstimateDetailPage />
+        </AuthGuard>
       </Route>
       <Route path="/estimates">
-        <AuthGuard><EstimatesPage /></AuthGuard>
+        <AuthGuard>
+          <EstimatesPage />
+        </AuthGuard>
       </Route>
       <Route path="/purchase-orders/new">
-        <AuthGuard><PoFormPage /></AuthGuard>
+        <AuthGuard>
+          <PoFormPage />
+        </AuthGuard>
       </Route>
       <Route path="/purchase-orders/:id">
-        <AuthGuard><PoDetailPage /></AuthGuard>
+        <AuthGuard>
+          <PoDetailPage />
+        </AuthGuard>
       </Route>
       <Route path="/purchase-orders">
-        <AuthGuard><PurchaseOrdersPage /></AuthGuard>
+        <AuthGuard>
+          <PurchaseOrdersPage />
+        </AuthGuard>
       </Route>
       <Route path="/statements">
-        <AuthGuard><StatementPage /></AuthGuard>
+        <AuthGuard>
+          <StatementPage />
+        </AuthGuard>
       </Route>
       <Route path="/general-ledger">
-        <AuthGuard><GeneralLedgerPage /></AuthGuard>
+        <AuthGuard>
+          <GeneralLedgerPage />
+        </AuthGuard>
       </Route>
       <Route path="/trial-balance/import">
-        <AuthGuard><TrialBalanceImportPage /></AuthGuard>
+        <AuthGuard>
+          <TrialBalanceImportPage />
+        </AuthGuard>
       </Route>
       <Route path="/trial-balance">
-        <AuthGuard><TrialBalancePage /></AuthGuard>
+        <AuthGuard>
+          <TrialBalancePage />
+        </AuthGuard>
       </Route>
       <Route path="/reports">
-        <AuthGuard><ReportsPage /></AuthGuard>
+        <AuthGuard>
+          <ReportsPage />
+        </AuthGuard>
       </Route>
       <Route path="/management-reports">
-        <AuthGuard><ManagementReportsPage /></AuthGuard>
+        <AuthGuard>
+          <ManagementReportsPage />
+        </AuthGuard>
       </Route>
       <Route path="/search">
-        <AuthGuard><SearchPage /></AuthGuard>
+        <AuthGuard>
+          <SearchPage />
+        </AuthGuard>
       </Route>
       <Route>
-        <AuthGuard><DashboardPage /></AuthGuard>
+        <AuthGuard>
+          <DashboardPage />
+        </AuthGuard>
       </Route>
     </Switch>
   );

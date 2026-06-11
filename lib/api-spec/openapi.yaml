@@ -737,7 +737,8 @@ components:
 
     Account:
       type: object
-      required: [id, organizationId, code, name, type, subtype, isActive, cashFlowCategory, sortOrder]
+      required:
+        [id, organizationId, code, name, type, subtype, isActive, cashFlowCategory, sortOrder]
       properties:
         id: { type: string }
         organizationId: { type: string }
@@ -798,7 +799,21 @@ components:
 
     Invoice:
       type: object
-      required: [id, organizationId, customerId, number, status, issueDate, dueDate, subtotalCents, taxCents, totalCents, balanceCents, createdAt]
+      required:
+        [
+          id,
+          organizationId,
+          customerId,
+          number,
+          status,
+          issueDate,
+          dueDate,
+          subtotalCents,
+          taxCents,
+          totalCents,
+          balanceCents,
+          createdAt,
+        ]
       properties:
         id: { type: string }
         organizationId: { type: string }
@@ -816,7 +831,22 @@ components:
 
     InvoiceDetail:
       type: object
-      required: [id, organizationId, customerId, number, status, issueDate, dueDate, subtotalCents, taxCents, totalCents, balanceCents, createdAt, lineItems]
+      required:
+        [
+          id,
+          organizationId,
+          customerId,
+          number,
+          status,
+          issueDate,
+          dueDate,
+          subtotalCents,
+          taxCents,
+          totalCents,
+          balanceCents,
+          createdAt,
+          lineItems,
+        ]
       properties:
         id: { type: string }
         organizationId: { type: string }
@@ -838,7 +868,21 @@ components:
 
     Bill:
       type: object
-      required: [id, organizationId, vendorId, number, status, issueDate, dueDate, subtotalCents, taxCents, totalCents, balanceCents, createdAt]
+      required:
+        [
+          id,
+          organizationId,
+          vendorId,
+          number,
+          status,
+          issueDate,
+          dueDate,
+          subtotalCents,
+          taxCents,
+          totalCents,
+          balanceCents,
+          createdAt,
+        ]
       properties:
         id: { type: string }
         organizationId: { type: string }
@@ -856,7 +900,22 @@ components:
 
     BillDetail:
       type: object
-      required: [id, organizationId, vendorId, number, status, issueDate, dueDate, subtotalCents, taxCents, totalCents, balanceCents, createdAt, lineItems]
+      required:
+        [
+          id,
+          organizationId,
+          vendorId,
+          number,
+          status,
+          issueDate,
+          dueDate,
+          subtotalCents,
+          taxCents,
+          totalCents,
+          balanceCents,
+          createdAt,
+          lineItems,
+        ]
       properties:
         id: { type: string }
         organizationId: { type: string }
@@ -927,7 +986,8 @@ components:
 
     BankAccount:
       type: object
-      required: [id, organizationId, accountId, institutionName, bankBalanceCents, isActive, createdAt]
+      required:
+        [id, organizationId, accountId, institutionName, bankBalanceCents, isActive, createdAt]
       properties:
         id: { type: string }
         organizationId: { type: string }

@@ -2,7 +2,14 @@
 // amount parsing/validation. Kept separate from the React component so they're
 // easy to reason about and reuse.
 
-export type FieldKey = "date" | "amount" | "description" | "reference" | "payee" | "type" | "category";
+export type FieldKey =
+  | "date"
+  | "amount"
+  | "description"
+  | "reference"
+  | "payee"
+  | "type"
+  | "category";
 
 export const REQUIRED_FIELDS: FieldKey[] = ["date", "amount", "description"];
 export const OPTIONAL_FIELDS: FieldKey[] = ["reference", "payee", "type", "category"];
@@ -21,7 +28,16 @@ const HINTS: Record<FieldKey, string[]> = {
   date: ["date", "transaction date", "posted", "posting date", "trans date", "post date"],
   amount: ["amount", "amt", "value", "transaction amount"],
   description: ["description", "memo", "details", "narrative", "transaction", "particulars"],
-  reference: ["reference", "ref", "ref no", "check", "cheque", "check number", "transaction id", "fitid"],
+  reference: [
+    "reference",
+    "ref",
+    "ref no",
+    "check",
+    "cheque",
+    "check number",
+    "transaction id",
+    "fitid",
+  ],
   payee: ["payee", "merchant", "paid to", "received from", "name", "counterparty"],
   type: ["type", "transaction type", "debit/credit", "dr/cr", "direction"],
   category: ["category", "account", "class", "tag"],
@@ -31,9 +47,25 @@ const HINTS: Record<FieldKey, string[]> = {
 export function autodetectMapping(headers: string[]): Record<FieldKey, string> {
   const norm = headers.map((h) => h.trim().toLowerCase());
   const used = new Set<string>();
-  const mapping = { date: "", amount: "", description: "", reference: "", payee: "", type: "", category: "" } as Record<FieldKey, string>;
+  const mapping = {
+    date: "",
+    amount: "",
+    description: "",
+    reference: "",
+    payee: "",
+    type: "",
+    category: "",
+  } as Record<FieldKey, string>;
 
-  const order: FieldKey[] = ["date", "amount", "type", "reference", "description", "payee", "category"];
+  const order: FieldKey[] = [
+    "date",
+    "amount",
+    "type",
+    "reference",
+    "description",
+    "payee",
+    "category",
+  ];
   for (const field of order) {
     const hints = HINTS[field];
     let bestIdx = -1;
@@ -43,11 +75,17 @@ export function autodetectMapping(headers: string[]): Record<FieldKey, string> {
         if (used.has(headers[i])) continue;
         const h = norm[i];
         const hit = hints.some((hint) => (exact ? h === hint : h.includes(hint)));
-        if (hit) { bestIdx = i; break; }
+        if (hit) {
+          bestIdx = i;
+          break;
+        }
       }
       if (bestIdx >= 0) break;
     }
-    if (bestIdx >= 0) { mapping[field] = headers[bestIdx]; used.add(headers[bestIdx]); }
+    if (bestIdx >= 0) {
+      mapping[field] = headers[bestIdx];
+      used.add(headers[bestIdx]);
+    }
   }
   return mapping;
 }
@@ -59,13 +97,19 @@ export function parseDate(raw: string | undefined, fmt: DateFormat): Date | null
   const s = String(raw).trim();
   if (!s) return null;
 
-  const iso = () => { const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null; };
+  const iso = () => {
+    const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
+  };
   const slash = (dayFirst: boolean) => {
     const m = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})/);
     if (!m) return null;
-    let y = Number(m[3]); if (y < 100) y += 2000;
-    const first = Number(m[1]), second = Number(m[2]);
-    const day = dayFirst ? first : second, mon = dayFirst ? second : first;
+    let y = Number(m[3]);
+    if (y < 100) y += 2000;
+    const first = Number(m[1]),
+      second = Number(m[2]);
+    const day = dayFirst ? first : second,
+      mon = dayFirst ? second : first;
     if (mon < 1 || mon > 12 || day < 1 || day > 31) return null;
     return new Date(y, mon - 1, day);
   };
@@ -74,7 +118,15 @@ export function parseDate(raw: string | undefined, fmt: DateFormat): Date | null
   if (fmt === "YYYY-MM-DD") d = iso();
   else if (fmt === "MM/DD/YYYY") d = slash(false);
   else if (fmt === "DD/MM/YYYY") d = slash(true);
-  else d = iso() || slash(false) || slash(true) || (() => { const x = new Date(s); return isNaN(x.getTime()) ? null : x; })();
+  else
+    d =
+      iso() ||
+      slash(false) ||
+      slash(true) ||
+      (() => {
+        const x = new Date(s);
+        return isNaN(x.getTime()) ? null : x;
+      })();
 
   return d && !isNaN(d.getTime()) ? d : null;
 }
@@ -83,19 +135,27 @@ export function parseDate(raw: string | undefined, fmt: DateFormat): Date | null
  *  hint (e.g. "debit"/"withdrawal") sets the sign when the amount is unsigned. */
 export function parseAmountToCents(raw: string | undefined, typeHint?: string): number | null {
   if (raw == null) return null;
-  let s = String(raw).trim().replace(/[$,\s]/g, "");
+  let s = String(raw)
+    .trim()
+    .replace(/[$,\s]/g, "");
   if (s === "") return null;
   let neg = false;
-  if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
-  if (s.startsWith("-")) { neg = true; s = s.slice(1); }
-  else if (s.startsWith("+")) s = s.slice(1);
+  if (/^\(.*\)$/.test(s)) {
+    neg = true;
+    s = s.slice(1, -1);
+  }
+  if (s.startsWith("-")) {
+    neg = true;
+    s = s.slice(1);
+  } else if (s.startsWith("+")) s = s.slice(1);
   if (s === "" || isNaN(Number(s))) return null;
   let cents = Math.round(Number(s) * 100);
   if (neg) cents = -cents;
   if (typeHint) {
     const t = typeHint.toLowerCase();
     if (/(debit|withdrawal|payment|paid|expense|out|\bdr\b)/.test(t) && cents > 0) cents = -cents;
-    else if (/(credit|deposit|received|income|\bin\b|\bcr\b)/.test(t) && cents < 0) cents = Math.abs(cents);
+    else if (/(credit|deposit|received|income|\bin\b|\bcr\b)/.test(t) && cents < 0)
+      cents = Math.abs(cents);
   }
   return cents;
 }
@@ -117,7 +177,8 @@ export function buildRows(
   mapping: Record<FieldKey, string>,
   fmt: DateFormat,
 ): MappedRow[] {
-  const get = (row: Record<string, string>, field: FieldKey) => (mapping[field] ? (row[mapping[field]] ?? "") : "");
+  const get = (row: Record<string, string>, field: FieldKey) =>
+    mapping[field] ? (row[mapping[field]] ?? "") : "";
   return raw.map((row, i) => {
     const dateRaw = get(row, "date");
     const amountRaw = get(row, "amount");
@@ -134,8 +195,10 @@ export function buildRows(
     else if (!description) errors.push("Empty description");
     return {
       rowIndex: i + 1,
-      date, dateRaw,
-      amountCents, amountRaw,
+      date,
+      dateRaw,
+      amountCents,
+      amountRaw,
       description,
       referenceNumber: (get(row, "reference") || "").trim(),
       payeeName: (get(row, "payee") || "").trim(),

@@ -41,7 +41,7 @@ export const sessionMiddleware = session({
 export function requireAuth(
   req: import("express").Request,
   res: import("express").Response,
-  next: import("express").NextFunction
+  next: import("express").NextFunction,
 ) {
   if (!req.session.userId) {
     res.status(401).json({ error: "Unauthorized" });

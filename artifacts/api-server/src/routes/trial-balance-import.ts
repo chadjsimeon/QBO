@@ -15,17 +15,27 @@ function inferType(accountNumber: string, provided?: string): AccountType {
   const up = (provided || "").trim().toUpperCase();
   if ((ACCOUNT_TYPES as readonly string[]).includes(up)) return up as AccountType;
   const first = accountNumber.trim()[0];
-  return ({ "1": "ASSET", "2": "LIABILITY", "3": "EQUITY", "4": "INCOME", "5": "EXPENSE" } as Record<string, AccountType>)[first] ?? "EXPENSE";
+  return (
+    (
+      { "1": "ASSET", "2": "LIABILITY", "3": "EQUITY", "4": "INCOME", "5": "EXPENSE" } as Record<
+        string,
+        AccountType
+      >
+    )[first] ?? "EXPENSE"
+  );
 }
 
 interface ImportRow {
-  accountNumber: string; accountName: string;
-  debitCents: number; creditCents: number;
-  accountType?: string; description?: string;
+  accountNumber: string;
+  accountName: string;
+  debitCents: number;
+  creditCents: number;
+  accountType?: string;
+  description?: string;
 }
 
 function normalizeRows(raw: any[]): ImportRow[] {
-  return (raw ?? []).map(r => ({
+  return (raw ?? []).map((r) => ({
     accountNumber: String(r.accountNumber ?? "").trim(),
     accountName: String(r.accountName ?? "").trim(),
     debitCents: Number.isFinite(r.debitCents) ? Math.round(r.debitCents) : 0,
@@ -40,14 +50,20 @@ function normalizeRows(raw: any[]): ImportRow[] {
 router.post("/trial-balance/import/analyze", async (req, res) => {
   const orgId = req.session.organizationId!;
   const rows = normalizeRows(req.body?.rows);
-  if (!rows.length) { res.status(400).json({ error: "No rows to analyze" }); return; }
+  if (!rows.length) {
+    res.status(400).json({ error: "No rows to analyze" });
+    return;
+  }
 
   const existing = await db.select().from(accounts).where(eq(accounts.organizationId, orgId));
-  const byCode = new Map(existing.map(a => [a.code, a]));
+  const byCode = new Map(existing.map((a) => [a.code, a]));
 
   const seen = new Map<string, number>();
-  let createCount = 0, matchCount = 0, errorCount = 0;
-  let totalDebitsCents = 0, totalCreditsCents = 0;
+  let createCount = 0,
+    matchCount = 0,
+    errorCount = 0;
+  let totalDebitsCents = 0,
+    totalCreditsCents = 0;
 
   const results = rows.map((r, index) => {
     const errors: string[] = [];
@@ -68,11 +84,17 @@ router.post("/trial-balance/import/analyze", async (req, res) => {
     else if (status === "match") matchCount++;
     else errorCount++;
 
-    if (!errors.length) { totalDebitsCents += r.debitCents; totalCreditsCents += r.creditCents; }
+    if (!errors.length) {
+      totalDebitsCents += r.debitCents;
+      totalCreditsCents += r.creditCents;
+    }
 
     return {
-      index, accountNumber: r.accountNumber, accountName: r.accountName,
-      debitCents: r.debitCents, creditCents: r.creditCents,
+      index,
+      accountNumber: r.accountNumber,
+      accountName: r.accountName,
+      debitCents: r.debitCents,
+      creditCents: r.creditCents,
       type: inferType(r.accountNumber, r.accountType),
       status,
       existingAccountId: match?.id ?? null,
@@ -83,8 +105,12 @@ router.post("/trial-balance/import/analyze", async (req, res) => {
 
   const differenceCents = totalDebitsCents - totalCreditsCents;
   res.json({
-    results, createCount, matchCount, errorCount,
-    totalDebitsCents, totalCreditsCents,
+    results,
+    createCount,
+    matchCount,
+    errorCount,
+    totalDebitsCents,
+    totalCreditsCents,
     balanced: differenceCents === 0,
     differenceCents,
   });
@@ -95,29 +121,49 @@ router.post("/trial-balance/import/analyze", async (req, res) => {
 router.post("/trial-balance/import/commit", async (req, res) => {
   const orgId = req.session.organizationId!;
   const { effectiveDate, fileName, duplicateStrategy } = req.body as {
-    effectiveDate?: string; fileName?: string; duplicateStrategy?: "skip" | "overwrite" | "balances";
+    effectiveDate?: string;
+    fileName?: string;
+    duplicateStrategy?: "skip" | "overwrite" | "balances";
   };
   const rows = normalizeRows(req.body?.rows);
-  if (!rows.length) { res.status(400).json({ error: "No rows to import" }); return; }
+  if (!rows.length) {
+    res.status(400).json({ error: "No rows to import" });
+    return;
+  }
   const effDate = effectiveDate ? new Date(effectiveDate) : new Date();
-  if (isNaN(effDate.getTime())) { res.status(400).json({ error: "Invalid effective date" }); return; }
+  if (isNaN(effDate.getTime())) {
+    res.status(400).json({ error: "Invalid effective date" });
+    return;
+  }
   const strategy = duplicateStrategy ?? "balances";
 
   const existing = await db.select().from(accounts).where(eq(accounts.organizationId, orgId));
-  const byCode = new Map(existing.map(a => [a.code, a]));
+  const byCode = new Map(existing.map((a) => [a.code, a]));
   const currentNet = await getNetDebitByAccount(orgId, { lte: effDate });
 
-  let accountsCreated = 0, accountsMatched = 0, accountsSkipped = 0;
-  let totalDebitsCents = 0, totalCreditsCents = 0;
+  let accountsCreated = 0,
+    accountsMatched = 0,
+    accountsSkipped = 0;
+  let totalDebitsCents = 0,
+    totalCreditsCents = 0;
   const failures: Array<{ index: number; reason: string }> = [];
   const lines: Array<{ accountId: string; debitCents: number; creditCents: number }> = [];
   const dealt = new Set<string>();
 
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
-    if (!r.accountNumber || !r.accountName) { failures.push({ index: i, reason: "Missing account number or name" }); continue; }
-    if (r.debitCents > 0 && r.creditCents > 0) { failures.push({ index: i, reason: "Both debit and credit" }); continue; }
-    if (dealt.has(r.accountNumber)) { failures.push({ index: i, reason: "Duplicate account number in file" }); continue; }
+    if (!r.accountNumber || !r.accountName) {
+      failures.push({ index: i, reason: "Missing account number or name" });
+      continue;
+    }
+    if (r.debitCents > 0 && r.creditCents > 0) {
+      failures.push({ index: i, reason: "Both debit and credit" });
+      continue;
+    }
+    if (dealt.has(r.accountNumber)) {
+      failures.push({ index: i, reason: "Duplicate account number in file" });
+      continue;
+    }
     dealt.add(r.accountNumber);
 
     const type = inferType(r.accountNumber, r.accountType);
@@ -126,24 +172,34 @@ router.post("/trial-balance/import/commit", async (req, res) => {
     try {
       if (acct) {
         accountsMatched++;
-        if (strategy === "skip") { accountsSkipped++; continue; }
+        if (strategy === "skip") {
+          accountsSkipped++;
+          continue;
+        }
         if (strategy === "overwrite") {
-          await db.update(accounts).set({ name: r.accountName, type, description: r.description?.trim() || null })
+          await db
+            .update(accounts)
+            .set({ name: r.accountName, type, description: r.description?.trim() || null })
             .where(eq(accounts.id, acct.id));
         }
         // "balances" and "overwrite" both (re)set the opening balance below.
       } else {
-        const sortOrder = Number.isFinite(Number(r.accountNumber)) ? Math.min(Number(r.accountNumber), 99999) : 9000 + i;
-        const [created] = await db.insert(accounts).values({
-          organizationId: orgId,
-          code: r.accountNumber,
-          name: r.accountName,
-          type,
-          subtype: "general",
-          description: r.description?.trim() || null,
-          cashFlowCategory: "NONE",
-          sortOrder,
-        }).returning();
+        const sortOrder = Number.isFinite(Number(r.accountNumber))
+          ? Math.min(Number(r.accountNumber), 99999)
+          : 9000 + i;
+        const [created] = await db
+          .insert(accounts)
+          .values({
+            organizationId: orgId,
+            code: r.accountNumber,
+            name: r.accountName,
+            type,
+            subtype: "general",
+            description: r.description?.trim() || null,
+            cashFlowCategory: "NONE",
+            sortOrder,
+          })
+          .returning();
         acct = created;
         byCode.set(r.accountNumber, created);
         accountsCreated++;
@@ -158,7 +214,11 @@ router.post("/trial-balance/import/commit", async (req, res) => {
       const current = currentNet.get(acct.id) ?? 0;
       const delta = target - current;
       if (delta !== 0) {
-        lines.push({ accountId: acct.id, debitCents: delta > 0 ? delta : 0, creditCents: delta < 0 ? -delta : 0 });
+        lines.push({
+          accountId: acct.id,
+          debitCents: delta > 0 ? delta : 0,
+          creditCents: delta < 0 ? -delta : 0,
+        });
       }
     } catch (e: any) {
       failures.push({ index: i, reason: e?.message || "Failed to process row" });
@@ -171,45 +231,65 @@ router.post("/trial-balance/import/commit", async (req, res) => {
   // posting can't leave a COMPLETED import row without its journal entry.
   const importedByName = req.session.name || req.session.email || null;
   const { imp, journalEntryId } = await db.transaction(async (tx) => {
-    const [impRow] = await tx.insert(trialBalanceImports).values({
-      organizationId: orgId,
-      effectiveDate: effDate,
-      fileName: fileName || null,
-      totalAccounts: rows.length,
-      accountsCreated, accountsMatched,
-      totalDebitsCents, totalCreditsCents,
-      balanced,
-      status: "COMPLETED",
-      importedByName,
-    }).returning();
+    const [impRow] = await tx
+      .insert(trialBalanceImports)
+      .values({
+        organizationId: orgId,
+        effectiveDate: effDate,
+        fileName: fileName || null,
+        totalAccounts: rows.length,
+        accountsCreated,
+        accountsMatched,
+        totalDebitsCents,
+        totalCreditsCents,
+        balanced,
+        status: "COMPLETED",
+        importedByName,
+      })
+      .returning();
 
     // Plug any residual to Opening Balance Equity so the journal entry balances.
     let jeId: string | null = null;
     const residual = lines.reduce((s, l) => s + l.debitCents - l.creditCents, 0);
     if (residual !== 0) {
       const obe = await findOrCreateOpeningBalanceEquity(orgId, tx);
-      lines.push({ accountId: obe.id, debitCents: residual < 0 ? -residual : 0, creditCents: residual > 0 ? residual : 0 });
+      lines.push({
+        accountId: obe.id,
+        debitCents: residual < 0 ? -residual : 0,
+        creditCents: residual > 0 ? residual : 0,
+      });
     }
     if (lines.length >= 2) {
-      const entry = await postEntry({
-        organizationId: orgId,
-        date: effDate,
-        memo: `Trial balance import${fileName ? ` — ${fileName}` : ""}`,
-        sourceType: "ADJUSTMENT",
-        sourceId: impRow.id,
-        lines,
-      }, tx);
+      const entry = await postEntry(
+        {
+          organizationId: orgId,
+          date: effDate,
+          memo: `Trial balance import${fileName ? ` — ${fileName}` : ""}`,
+          sourceType: "ADJUSTMENT",
+          sourceId: impRow.id,
+          lines,
+        },
+        tx,
+      );
       jeId = entry.id;
-      await tx.update(trialBalanceImports).set({ journalEntryId: jeId }).where(eq(trialBalanceImports.id, impRow.id));
+      await tx
+        .update(trialBalanceImports)
+        .set({ journalEntryId: jeId })
+        .where(eq(trialBalanceImports.id, impRow.id));
     }
     return { imp: impRow, journalEntryId: jeId };
   });
 
   res.status(201).json({
     importId: imp.id,
-    accountsCreated, accountsMatched, accountsSkipped,
-    failed: failures.length, failures,
-    totalDebitsCents, totalCreditsCents, balanced,
+    accountsCreated,
+    accountsMatched,
+    accountsSkipped,
+    failed: failures.length,
+    failures,
+    totalDebitsCents,
+    totalCreditsCents,
+    balanced,
     journalEntryId,
     effectiveDate: effDate.toISOString(),
   });

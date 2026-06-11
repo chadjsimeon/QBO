@@ -10,8 +10,17 @@ import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
-interface Account { id: string; code: string; name: string; type: string; }
-interface JeLine { accountId: string; debitCents: number; creditCents: number; }
+interface Account {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+}
+interface JeLine {
+  accountId: string;
+  debitCents: number;
+  creditCents: number;
+}
 
 const EMPTY: JeLine = { accountId: "", debitCents: 0, creditCents: 0 };
 
@@ -24,57 +33,90 @@ export default function JournalEntryFormPage() {
   const [memo, setMemo] = useState("");
   const [lines, setLines] = useState<JeLine[]>([{ ...EMPTY }, { ...EMPTY }]);
 
-  const { data: accounts = [] } = useQuery({ queryKey: ["accounts"], queryFn: () => apiFetch<Account[]>("/accounts") });
-  const postable = accounts.filter(a => a.type !== undefined);
+  const { data: accounts = [] } = useQuery({
+    queryKey: ["accounts"],
+    queryFn: () => apiFetch<Account[]>("/accounts"),
+  });
+  const postable = accounts.filter((a) => a.type !== undefined);
 
   const totalDebits = lines.reduce((s, l) => s + (l.debitCents || 0), 0);
   const totalCredits = lines.reduce((s, l) => s + (l.creditCents || 0), 0);
   const balanced = totalDebits === totalCredits && totalDebits > 0;
-  const filled = lines.filter(l => l.accountId && (l.debitCents || l.creditCents)).length;
+  const filled = lines.filter((l) => l.accountId && (l.debitCents || l.creditCents)).length;
 
   const updateLine = (i: number, patch: Partial<JeLine>) =>
-    setLines(ls => ls.map((l, idx) => idx === i ? { ...l, ...patch } : l));
-  const addLine = () => setLines(ls => [...ls, { ...EMPTY }]);
-  const removeLine = (i: number) => setLines(ls => ls.length > 2 ? ls.filter((_, idx) => idx !== i) : ls);
+    setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  const addLine = () => setLines((ls) => [...ls, { ...EMPTY }]);
+  const removeLine = (i: number) =>
+    setLines((ls) => (ls.length > 2 ? ls.filter((_, idx) => idx !== i) : ls));
 
   const save = useMutation({
-    mutationFn: () => apiFetch("/journal-entries", {
-      method: "POST",
-      body: JSON.stringify({
-        date, memo,
-        lines: lines
-          .filter(l => l.accountId && (l.debitCents || l.creditCents))
-          .map(l => ({ accountId: l.accountId, debitCents: l.debitCents || 0, creditCents: l.creditCents || 0 })),
+    mutationFn: () =>
+      apiFetch("/journal-entries", {
+        method: "POST",
+        body: JSON.stringify({
+          date,
+          memo,
+          lines: lines
+            .filter((l) => l.accountId && (l.debitCents || l.creditCents))
+            .map((l) => ({
+              accountId: l.accountId,
+              debitCents: l.debitCents || 0,
+              creditCents: l.creditCents || 0,
+            })),
+        }),
       }),
-    }),
     onSuccess: (data: any) => {
       qc.invalidateQueries({ queryKey: ["journal-entries"] });
       toast({ title: "Journal entry posted" });
       navigate(`/journal-entries/${data.id}`);
     },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError: (e: Error) =>
+      toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   return (
     <>
       <div className="mb-6">
-        <Link href="/journal-entries" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
+        <Link
+          href="/journal-entries"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
+        >
           <ArrowLeft className="h-3 w-3" /> Back to journal entries
         </Link>
         <h1 className="text-2xl font-bold">New journal entry</h1>
       </div>
 
-      <form onSubmit={e => { e.preventDefault(); save.mutate(); }} className="space-y-6">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          save.mutate();
+        }}
+        className="space-y-6"
+      >
         <Card>
-          <CardHeader><CardTitle>Details</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>Details</CardTitle>
+          </CardHeader>
           <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="date">Date *</Label>
-              <Input id="date" type="date" value={date} onChange={e => setDate(e.target.value)} required />
+              <Input
+                id="date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                required
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="memo">Memo</Label>
-              <Input id="memo" value={memo} onChange={e => setMemo(e.target.value)} placeholder="Description" />
+              <Input
+                id="memo"
+                value={memo}
+                onChange={(e) => setMemo(e.target.value)}
+                placeholder="Description"
+              />
             </div>
           </CardContent>
         </Card>
@@ -83,7 +125,9 @@ export default function JournalEntryFormPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>Lines</CardTitle>
-              <Button type="button" variant="outline" size="sm" onClick={addLine}><Plus className="h-4 w-4 mr-1" /> Add line</Button>
+              <Button type="button" variant="outline" size="sm" onClick={addLine}>
+                <Plus className="h-4 w-4 mr-1" /> Add line
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -96,18 +140,41 @@ export default function JournalEntryFormPage() {
             {lines.map((line, i) => (
               <div key={i} className="grid grid-cols-12 gap-2 items-center">
                 <div className="col-span-6">
-                  <Select value={line.accountId} onChange={e => updateLine(i, { accountId: e.target.value })}>
+                  <Select
+                    value={line.accountId}
+                    onChange={(e) => updateLine(i, { accountId: e.target.value })}
+                  >
                     <option value="">Select account…</option>
-                    {postable.map(a => <option key={a.id} value={a.id}>{a.code} · {a.name}</option>)}
+                    {postable.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.code} · {a.name}
+                      </option>
+                    ))}
                   </Select>
                 </div>
                 <div className="col-span-3">
-                  <Input type="number" min={0} step={1} className="text-right" value={line.debitCents || ""}
-                    onChange={e => updateLine(i, { debitCents: parseInt(e.target.value) || 0, creditCents: 0 })} />
+                  <Input
+                    type="number"
+                    min={0}
+                    step={1}
+                    className="text-right"
+                    value={line.debitCents || ""}
+                    onChange={(e) =>
+                      updateLine(i, { debitCents: parseInt(e.target.value) || 0, creditCents: 0 })
+                    }
+                  />
                 </div>
                 <div className="col-span-2">
-                  <Input type="number" min={0} step={1} className="text-right" value={line.creditCents || ""}
-                    onChange={e => updateLine(i, { creditCents: parseInt(e.target.value) || 0, debitCents: 0 })} />
+                  <Input
+                    type="number"
+                    min={0}
+                    step={1}
+                    className="text-right"
+                    value={line.creditCents || ""}
+                    onChange={(e) =>
+                      updateLine(i, { creditCents: parseInt(e.target.value) || 0, debitCents: 0 })
+                    }
+                  />
                 </div>
                 <div className="col-span-1 flex justify-center">
                   {lines.length > 2 && (
@@ -126,15 +193,21 @@ export default function JournalEntryFormPage() {
               <div className="col-span-1" />
             </div>
             <div className="flex justify-end text-sm">
-              {balanced
-                ? <span className="text-green-600 font-medium">Balanced</span>
-                : <span className="text-muted-foreground">Difference: {formatCents(Math.abs(totalDebits - totalCredits))}</span>}
+              {balanced ? (
+                <span className="text-green-600 font-medium">Balanced</span>
+              ) : (
+                <span className="text-muted-foreground">
+                  Difference: {formatCents(Math.abs(totalDebits - totalCredits))}
+                </span>
+              )}
             </div>
           </CardContent>
         </Card>
 
         <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" asChild><Link href="/journal-entries">Cancel</Link></Button>
+          <Button type="button" variant="outline" asChild>
+            <Link href="/journal-entries">Cancel</Link>
+          </Button>
           <Button type="submit" disabled={save.isPending || !balanced || filled < 2}>
             {save.isPending ? "Posting…" : "Post entry"}
           </Button>

@@ -2,14 +2,27 @@ import { useQuery } from "@tanstack/react-query";
 import { apiFetch, formatCents, formatDate } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
 
 interface Payment {
-  id: string; direction: "RECEIVED" | "SENT";
-  customerId: string | null; customerName: string | null;
-  vendorId: string | null; vendorName: string | null;
-  amountCents: number; date: string; method: string; memo: string | null;
+  id: string;
+  direction: "RECEIVED" | "SENT";
+  customerId: string | null;
+  customerName: string | null;
+  vendorId: string | null;
+  vendorName: string | null;
+  amountCents: number;
+  date: string;
+  method: string;
+  memo: string | null;
 }
 
 export default function PaymentsPage() {
@@ -26,7 +39,10 @@ export default function PaymentsPage() {
       </div>
 
       {payments.length === 0 ? (
-        <EmptyState title="No payments yet" description="Payments are recorded when you allocate money against invoices or bills." />
+        <EmptyState
+          title="No payments yet"
+          description="Payments are recorded when you allocate money against invoices or bills."
+        />
       ) : (
         <Card className="shadow-md overflow-hidden">
           <Table>
@@ -41,7 +57,7 @@ export default function PaymentsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {payments.map(p => (
+              {payments.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="text-muted-foreground">{formatDate(p.date)}</TableCell>
                   <TableCell>
@@ -52,7 +68,9 @@ export default function PaymentsPage() {
                     {p.method.replace(/_/g, " ").toLowerCase()}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">{p.memo ?? "—"}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatCents(p.amountCents)}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatCents(p.amountCents)}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

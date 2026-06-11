@@ -36,7 +36,10 @@ app.use(
 // Browsers reach the API same-origin through the Vite/production proxy, so no
 // cross-origin access is needed by default. To allow a separate frontend origin,
 // set CORS_ORIGINS to a comma-separated whitelist.
-const corsOrigins = (process.env.CORS_ORIGINS ?? "").split(",").map(s => s.trim()).filter(Boolean);
+const corsOrigins = (process.env.CORS_ORIGINS ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 app.use(cors({ origin: corsOrigins.length ? corsOrigins : false, credentials: true }));
 app.use(cookieParser());
 app.use(sessionMiddleware);
@@ -50,7 +53,9 @@ app.use("/api", (_req, res) => {
 });
 
 function isBodyParseError(err: unknown): err is Error & { status: number } {
-  return err instanceof SyntaxError && "status" in err && (err as { status?: number }).status === 400;
+  return (
+    err instanceof SyntaxError && "status" in err && (err as { status?: number }).status === 400
+  );
 }
 
 app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
@@ -59,7 +64,9 @@ app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
     return;
   }
   if (err instanceof HttpError) {
-    res.status(err.status).json({ error: err.message, ...(err.details ? { details: err.details } : {}) });
+    res
+      .status(err.status)
+      .json({ error: err.message, ...(err.details ? { details: err.details } : {}) });
     return;
   }
   if (err instanceof ZodError) {

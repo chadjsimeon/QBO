@@ -45,7 +45,7 @@ export function Dropdown({
           className={cn(
             "absolute z-50 mt-2 min-w-44 overflow-hidden rounded-md border bg-card p-1 shadow-lg",
             align === "end" ? "right-0" : "left-0",
-            className
+            className,
           )}
           onClick={() => setOpen(false)}
         >
@@ -69,7 +69,9 @@ export function DropdownItem({
     "flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground";
   if (href) {
     return (
-      <Link href={href} className={cls}>{children}</Link>
+      <Link href={href} className={cls}>
+        {children}
+      </Link>
     );
   }
   return (
@@ -80,9 +82,7 @@ export function DropdownItem({
 }
 
 export function DropdownLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="px-2.5 py-1.5 text-xs font-medium text-muted-foreground">{children}</div>
-  );
+  return <div className="px-2.5 py-1.5 text-xs font-medium text-muted-foreground">{children}</div>;
 }
 
 export function DropdownSeparator() {

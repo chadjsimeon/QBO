@@ -8,14 +8,23 @@ import { EmptyState } from "@/components/empty-state";
 import { useToast } from "@/hooks/use-toast";
 
 interface BankAccount {
-  id: string; accountId: string; accountName: string | null;
-  institutionName: string; accountMask: string | null;
-  bankBalanceCents: number; isActive: boolean; createdAt: string;
-  forReviewCount: number; bookBalanceCents: number;
+  id: string;
+  accountId: string;
+  accountName: string | null;
+  institutionName: string;
+  accountMask: string | null;
+  bankBalanceCents: number;
+  isActive: boolean;
+  createdAt: string;
+  forReviewCount: number;
+  bookBalanceCents: number;
 }
 
 interface UnlinkedAccount {
-  id: string; code: string; name: string; subtype: string;
+  id: string;
+  code: string;
+  name: string;
+  subtype: string;
 }
 
 export default function BankingPage() {
@@ -51,10 +60,14 @@ export default function BankingPage() {
       <div className="mb-6 flex items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Banking</h1>
-          <p className="text-sm text-muted-foreground">Connected bank accounts and transaction reconciliation.</p>
+          <p className="text-sm text-muted-foreground">
+            Connected bank accounts and transaction reconciliation.
+          </p>
         </div>
         <Link href="/banking/import">
-          <Button><Upload className="h-4 w-4 mr-1" /> Import transactions</Button>
+          <Button>
+            <Upload className="h-4 w-4 mr-1" /> Import transactions
+          </Button>
         </Link>
       </div>
 
@@ -68,7 +81,7 @@ export default function BankingPage() {
       {/* Connected accounts */}
       {accounts.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          {accounts.map(ba => (
+          {accounts.map((ba) => (
             <Link key={ba.id} href={`/banking/${ba.id}`}>
               <Card className="cursor-pointer transition-colors hover:border-primary/50">
                 <CardHeader className="pb-2">
@@ -86,7 +99,9 @@ export default function BankingPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold tabular-nums">{formatCents(ba.bookBalanceCents)}</div>
+                  <div className="text-2xl font-bold tabular-nums">
+                    {formatCents(ba.bookBalanceCents)}
+                  </div>
                   <div className="text-xs text-muted-foreground">Book balance</div>
                   <div className="text-xs text-muted-foreground mt-1">
                     GL account: {ba.accountName ?? "—"}
@@ -105,7 +120,7 @@ export default function BankingPage() {
             Available to connect
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {unlinked.map(acct => (
+            {unlinked.map((acct) => (
               <Card key={acct.id} className="border-dashed">
                 <CardContent className="flex items-center justify-between py-4">
                   <div className="flex items-center gap-3">
@@ -115,7 +130,8 @@ export default function BankingPage() {
                     <div>
                       <p className="text-sm font-medium">{acct.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        {acct.code} · <span className="capitalize">{acct.subtype.replace(/_/g, " ")}</span>
+                        {acct.code} ·{" "}
+                        <span className="capitalize">{acct.subtype.replace(/_/g, " ")}</span>
                       </p>
                     </div>
                   </div>

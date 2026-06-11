@@ -1,5 +1,14 @@
 import { Router } from "express";
-import { db, bills, billLineItems, vendors, taxRates, accounts, journalEntries, journalLines } from "@workspace/db";
+import {
+  db,
+  bills,
+  billLineItems,
+  vendors,
+  taxRates,
+  accounts,
+  journalEntries,
+  journalLines,
+} from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { CreateBillBody, UpdateBillBody } from "@workspace/api-zod";
 import { requireAuth } from "../lib/session";
@@ -10,18 +19,27 @@ const router = Router();
 
 router.use(requireAuth);
 
-function computeLines(lines: Array<{ description: string; quantity: number; unitPriceCents: number; accountId: string; taxRateId?: string | null }>, taxMap: Map<string, number>) {
-  return lines.map(l => {
+function computeLines(
+  lines: Array<{
+    description: string;
+    quantity: number;
+    unitPriceCents: number;
+    accountId: string;
+    taxRateId?: string | null;
+  }>,
+  taxMap: Map<string, number>,
+) {
+  return lines.map((l) => {
     const amt = l.quantity * l.unitPriceCents;
     const rateBps = l.taxRateId ? (taxMap.get(l.taxRateId) ?? 0) : 0;
-    const tax = l.taxRateId ? Math.round(amt * rateBps / 10000) : 0;
+    const tax = l.taxRateId ? Math.round((amt * rateBps) / 10000) : 0;
     return { ...l, amountCents: amt, taxCents: tax };
   });
 }
 
 async function getTaxMap(orgId: string) {
   const rates = await db.select().from(taxRates).where(eq(taxRates.organizationId, orgId));
-  return new Map(rates.map(r => [r.id, r.rateBps]));
+  return new Map(rates.map((r) => [r.id, r.rateBps]));
 }
 
 function serializeBill(b: typeof bills.$inferSelect, vendorName?: string | null) {
@@ -36,19 +54,21 @@ function serializeBill(b: typeof bills.$inferSelect, vendorName?: string | null)
 
 router.get("/bills", async (req, res) => {
   const orgId = req.session.organizationId!;
-  const rows = await db.select({ bill: bills, vendorName: vendors.name })
+  const rows = await db
+    .select({ bill: bills, vendorName: vendors.name })
     .from(bills)
     .leftJoin(vendors, eq(bills.vendorId, vendors.id))
     .where(eq(bills.organizationId, orgId))
     .orderBy(bills.issueDate);
-  res.json(rows.map(r => serializeBill(r.bill, r.vendorName)));
+  res.json(rows.map((r) => serializeBill(r.bill, r.vendorName)));
 });
 
 router.post("/bills", validateBody(CreateBillBody), async (req, res) => {
   const orgId = req.session.organizationId!;
   const { contactId, number, issueDate, dueDate, lines } = req.body;
   if (!contactId || !number || !issueDate || !dueDate || !lines?.length) {
-    res.status(400).json({ error: "Missing required fields" }); return;
+    res.status(400).json({ error: "Missing required fields" });
+    return;
   }
 
   const taxMap = await getTaxMap(orgId);
@@ -58,29 +78,34 @@ router.post("/bills", validateBody(CreateBillBody), async (req, res) => {
   const totalCents = subtotalCents + taxCents;
 
   const bill = await db.transaction(async (tx) => {
-    const [row] = await tx.insert(bills).values({
-      organizationId: orgId,
-      vendorId: contactId,
-      number,
-      status: "DRAFT",
-      issueDate: new Date(issueDate),
-      dueDate: new Date(dueDate),
-      subtotalCents,
-      taxCents,
-      totalCents,
-      balanceCents: totalCents,
-    }).returning();
+    const [row] = await tx
+      .insert(bills)
+      .values({
+        organizationId: orgId,
+        vendorId: contactId,
+        number,
+        status: "DRAFT",
+        issueDate: new Date(issueDate),
+        dueDate: new Date(dueDate),
+        subtotalCents,
+        taxCents,
+        totalCents,
+        balanceCents: totalCents,
+      })
+      .returning();
 
-    await tx.insert(billLineItems).values(computed.map((l, i) => ({
-      billId: row.id,
-      description: l.description,
-      quantity: l.quantity,
-      unitPriceCents: l.unitPriceCents,
-      taxRateId: l.taxRateId || null,
-      accountId: l.accountId,
-      amountCents: l.amountCents,
-      sortOrder: i,
-    })));
+    await tx.insert(billLineItems).values(
+      computed.map((l, i) => ({
+        billId: row.id,
+        description: l.description,
+        quantity: l.quantity,
+        unitPriceCents: l.unitPriceCents,
+        taxRateId: l.taxRateId || null,
+        accountId: l.accountId,
+        amountCents: l.amountCents,
+        sortOrder: i,
+      })),
+    );
     return row;
   });
 
@@ -89,13 +114,19 @@ router.post("/bills", validateBody(CreateBillBody), async (req, res) => {
 
 router.get("/bills/:id", async (req, res) => {
   const orgId = req.session.organizationId!;
-  const [row] = await db.select({ bill: bills, vendorName: vendors.name })
+  const [row] = await db
+    .select({ bill: bills, vendorName: vendors.name })
     .from(bills)
     .leftJoin(vendors, eq(bills.vendorId, vendors.id))
     .where(and(eq(bills.id, req.params.id), eq(bills.organizationId, orgId)));
-  if (!row) { res.status(404).json({ error: "Not found" }); return; }
+  if (!row) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
 
-  const lines = await db.select().from(billLineItems)
+  const lines = await db
+    .select()
+    .from(billLineItems)
     .where(eq(billLineItems.billId, req.params.id))
     .orderBy(billLineItems.sortOrder);
 
@@ -106,10 +137,18 @@ router.patch("/bills/:id", validateBody(UpdateBillBody), async (req, res) => {
   const orgId = req.session.organizationId!;
   const { contactId, number, issueDate, dueDate, lines } = req.body;
 
-  const [existing] = await db.select().from(bills)
+  const [existing] = await db
+    .select()
+    .from(bills)
     .where(and(eq(bills.id, req.params.id), eq(bills.organizationId, orgId)));
-  if (!existing) { res.status(404).json({ error: "Not found" }); return; }
-  if (existing.status !== "DRAFT") { res.status(400).json({ error: "Only DRAFT bills can be edited" }); return; }
+  if (!existing) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  if (existing.status !== "DRAFT") {
+    res.status(400).json({ error: "Only DRAFT bills can be edited" });
+    return;
+  }
 
   const taxMap = await getTaxMap(orgId);
   const computed = computeLines(lines, taxMap);
@@ -118,28 +157,34 @@ router.patch("/bills/:id", validateBody(UpdateBillBody), async (req, res) => {
   const totalCents = subtotalCents + taxCents;
 
   const bill = await db.transaction(async (tx) => {
-    const [row] = await tx.update(bills).set({
-      vendorId: contactId,
-      number,
-      issueDate: new Date(issueDate),
-      dueDate: new Date(dueDate),
-      subtotalCents,
-      taxCents,
-      totalCents,
-      balanceCents: totalCents,
-    }).where(eq(bills.id, req.params.id)).returning();
+    const [row] = await tx
+      .update(bills)
+      .set({
+        vendorId: contactId,
+        number,
+        issueDate: new Date(issueDate),
+        dueDate: new Date(dueDate),
+        subtotalCents,
+        taxCents,
+        totalCents,
+        balanceCents: totalCents,
+      })
+      .where(eq(bills.id, req.params.id))
+      .returning();
 
     await tx.delete(billLineItems).where(eq(billLineItems.billId, req.params.id));
-    await tx.insert(billLineItems).values(computed.map((l, i) => ({
-      billId: row.id,
-      description: l.description,
-      quantity: l.quantity,
-      unitPriceCents: l.unitPriceCents,
-      taxRateId: l.taxRateId || null,
-      accountId: l.accountId,
-      amountCents: l.amountCents,
-      sortOrder: i,
-    })));
+    await tx.insert(billLineItems).values(
+      computed.map((l, i) => ({
+        billId: row.id,
+        description: l.description,
+        quantity: l.quantity,
+        unitPriceCents: l.unitPriceCents,
+        taxRateId: l.taxRateId || null,
+        accountId: l.accountId,
+        amountCents: l.amountCents,
+        sortOrder: i,
+      })),
+    );
     return row;
   });
 
@@ -148,27 +193,40 @@ router.patch("/bills/:id", validateBody(UpdateBillBody), async (req, res) => {
 
 router.delete("/bills/:id", async (req, res) => {
   const orgId = req.session.organizationId!;
-  await db.delete(bills)
-    .where(and(eq(bills.id, req.params.id), eq(bills.organizationId, orgId)));
+  await db.delete(bills).where(and(eq(bills.id, req.params.id), eq(bills.organizationId, orgId)));
   res.status(204).send();
 });
 
 router.post("/bills/:id/enter", async (req, res) => {
   const orgId = req.session.organizationId!;
-  const [existing] = await db.select().from(bills)
+  const [existing] = await db
+    .select()
+    .from(bills)
     .where(and(eq(bills.id, req.params.id), eq(bills.organizationId, orgId)));
-  if (!existing) { res.status(404).json({ error: "Not found" }); return; }
-  if (existing.status !== "DRAFT") { res.status(400).json({ error: "Only DRAFT bills can be entered" }); return; }
+  if (!existing) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  if (existing.status !== "DRAFT") {
+    res.status(400).json({ error: "Only DRAFT bills can be entered" });
+    return;
+  }
 
   // Find AP account (systemRole = "AP") and first expense account
-  const [apAccount] = await db.select().from(accounts)
+  const [apAccount] = await db
+    .select()
+    .from(accounts)
     .where(and(eq(accounts.organizationId, orgId), eq(accounts.systemRole, "AP")));
-  const [expenseAccount] = await db.select().from(accounts)
-    .where(and(
-      eq(accounts.organizationId, orgId),
-      eq(accounts.type, "EXPENSE"),
-      eq(accounts.subtype, "expense")
-    ));
+  const [expenseAccount] = await db
+    .select()
+    .from(accounts)
+    .where(
+      and(
+        eq(accounts.organizationId, orgId),
+        eq(accounts.type, "EXPENSE"),
+        eq(accounts.subtype, "expense"),
+      ),
+    );
 
   const bill = await db.transaction(async (tx) => {
     if (apAccount && expenseAccount) {
@@ -177,22 +235,36 @@ router.post("/bills/:id/enter", async (req, res) => {
         { accountId: apAccount.id, debitCents: 0, creditCents: existing.totalCents },
       ];
       if (existing.taxCents > 0) {
-        const [taxAccount] = await tx.select().from(accounts)
-          .where(and(eq(accounts.organizationId, orgId), eq(accounts.systemRole, "SALES_TAX_PAYABLE")));
-        entryLines.push({ accountId: (taxAccount ?? expenseAccount).id, debitCents: existing.taxCents, creditCents: 0 });
+        const [taxAccount] = await tx
+          .select()
+          .from(accounts)
+          .where(
+            and(eq(accounts.organizationId, orgId), eq(accounts.systemRole, "SALES_TAX_PAYABLE")),
+          );
+        entryLines.push({
+          accountId: (taxAccount ?? expenseAccount).id,
+          debitCents: existing.taxCents,
+          creditCents: 0,
+        });
       }
-      await postEntry({
-        organizationId: orgId,
-        date: existing.issueDate,
-        memo: `${existing.number} entered`,
-        sourceType: "BILL",
-        sourceId: existing.id,
-        lines: entryLines,
-      }, tx);
+      await postEntry(
+        {
+          organizationId: orgId,
+          date: existing.issueDate,
+          memo: `${existing.number} entered`,
+          sourceType: "BILL",
+          sourceId: existing.id,
+          lines: entryLines,
+        },
+        tx,
+      );
     }
 
-    const [row] = await tx.update(bills).set({ status: "OPEN" })
-      .where(eq(bills.id, req.params.id)).returning();
+    const [row] = await tx
+      .update(bills)
+      .set({ status: "OPEN" })
+      .where(eq(bills.id, req.params.id))
+      .returning();
     return row;
   });
   res.json(serializeBill(bill));
@@ -200,37 +272,59 @@ router.post("/bills/:id/enter", async (req, res) => {
 
 router.post("/bills/:id/void", async (req, res) => {
   const orgId = req.session.organizationId!;
-  const [existing] = await db.select().from(bills)
+  const [existing] = await db
+    .select()
+    .from(bills)
     .where(and(eq(bills.id, req.params.id), eq(bills.organizationId, orgId)));
-  if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+  if (!existing) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
 
   const bill = await db.transaction(async (tx) => {
     if (existing.status !== "VOID" && existing.status !== "DRAFT") {
       // Reverse the journal entry if one exists
-      const [je] = await tx.select().from(journalEntries)
-        .where(and(
-          eq(journalEntries.organizationId, orgId),
-          eq(journalEntries.sourceType, "BILL"),
-          eq(journalEntries.sourceId, existing.id)
-        )).limit(1);
+      const [je] = await tx
+        .select()
+        .from(journalEntries)
+        .where(
+          and(
+            eq(journalEntries.organizationId, orgId),
+            eq(journalEntries.sourceType, "BILL"),
+            eq(journalEntries.sourceId, existing.id),
+          ),
+        )
+        .limit(1);
 
       if (je) {
-        const jeLines = await tx.select().from(journalLines)
+        const jeLines = await tx
+          .select()
+          .from(journalLines)
           .where(eq(journalLines.journalEntryId, je.id));
-        await postEntry({
-          organizationId: orgId,
-          date: new Date(),
-          memo: `Void bill ${existing.number}`,
-          sourceType: "ADJUSTMENT",
-          isReversal: true,
-          reversedEntryId: je.id,
-          lines: jeLines.map(l => ({ accountId: l.accountId, debitCents: l.creditCents, creditCents: l.debitCents })),
-        }, tx);
+        await postEntry(
+          {
+            organizationId: orgId,
+            date: new Date(),
+            memo: `Void bill ${existing.number}`,
+            sourceType: "ADJUSTMENT",
+            isReversal: true,
+            reversedEntryId: je.id,
+            lines: jeLines.map((l) => ({
+              accountId: l.accountId,
+              debitCents: l.creditCents,
+              creditCents: l.debitCents,
+            })),
+          },
+          tx,
+        );
       }
     }
 
-    const [row] = await tx.update(bills).set({ status: "VOID", balanceCents: 0 })
-      .where(eq(bills.id, req.params.id)).returning();
+    const [row] = await tx
+      .update(bills)
+      .set({ status: "VOID", balanceCents: 0 })
+      .where(eq(bills.id, req.params.id))
+      .returning();
     return row;
   });
   res.json(serializeBill(bill));

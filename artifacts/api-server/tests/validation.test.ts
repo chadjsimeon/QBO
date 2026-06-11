@@ -17,13 +17,16 @@ describe("request validation", () => {
 
   it("rejects wrongly-typed line fields", async () => {
     const revenue = org.accounts.get("4100")!.id;
-    const res = await org.agent.post("/api/invoices").send({
-      contactId: "00000000-0000-0000-0000-000000000000",
-      number: "X-2",
-      issueDate: "2026-06-01",
-      dueDate: "2026-07-01",
-      lines: [{ description: "Work", quantity: "two", unitPriceCents: 100, accountId: revenue }],
-    }).expect(400);
+    const res = await org.agent
+      .post("/api/invoices")
+      .send({
+        contactId: "00000000-0000-0000-0000-000000000000",
+        number: "X-2",
+        issueDate: "2026-06-01",
+        dueDate: "2026-07-01",
+        lines: [{ description: "Work", quantity: "two", unitPriceCents: 100, accountId: revenue }],
+      })
+      .expect(400);
     expect(res.body.error).toBe("Invalid request");
   });
 
@@ -37,7 +40,8 @@ describe("request validation", () => {
   });
 
   it("strips unknown fields instead of persisting them", async () => {
-    const res = await org.agent.post("/api/customers")
+    const res = await org.agent
+      .post("/api/customers")
       .send({ name: "Strip Test", organizationId: "evil-org-override" })
       .expect(201);
     expect(res.body.organizationId).toBe(org.organizationId);

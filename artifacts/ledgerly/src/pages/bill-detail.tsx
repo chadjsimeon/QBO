@@ -6,27 +6,57 @@ import { apiFetch, formatCents, formatDate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
-  DRAFT: "secondary", OPEN: "default", PARTIAL: "outline", PAID: "outline",
-  OVERDUE: "destructive", VOID: "secondary",
+  DRAFT: "secondary",
+  OPEN: "default",
+  PARTIAL: "outline",
+  PAID: "outline",
+  OVERDUE: "destructive",
+  VOID: "secondary",
 };
 
 interface LineItem {
-  id: string; description: string; quantity: number; unitPriceCents: number;
-  amountCents: number; taxCents: number;
+  id: string;
+  description: string;
+  quantity: number;
+  unitPriceCents: number;
+  amountCents: number;
+  taxCents: number;
 }
 
 interface Bill {
-  id: string; number: string; vendorId: string; vendorName: string | null;
-  status: string; issueDate: string; dueDate: string;
-  subtotalCents: number; taxCents: number; totalCents: number; balanceCents: number;
+  id: string;
+  number: string;
+  vendorId: string;
+  vendorName: string | null;
+  status: string;
+  issueDate: string;
+  dueDate: string;
+  subtotalCents: number;
+  taxCents: number;
+  totalCents: number;
+  balanceCents: number;
   lineItems: LineItem[];
 }
 
@@ -37,7 +67,11 @@ export default function BillDetailPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
 
-  const { data: bill, isLoading, error } = useQuery({
+  const {
+    data: bill,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["bill", id],
     queryFn: () => apiFetch<Bill>(`/bills/${id}`),
     enabled: !!id,
@@ -45,20 +79,34 @@ export default function BillDetailPage() {
 
   const enterMutation = useMutation({
     mutationFn: () => apiFetch(`/bills/${id}/enter`, { method: "POST" }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["bill", id] }); qc.invalidateQueries({ queryKey: ["bills"] }); toast({ title: "Bill entered — status is now OPEN" }); },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["bill", id] });
+      qc.invalidateQueries({ queryKey: ["bills"] });
+      toast({ title: "Bill entered — status is now OPEN" });
+    },
+    onError: (e: Error) =>
+      toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const voidMutation = useMutation({
     mutationFn: () => apiFetch(`/bills/${id}/void`, { method: "POST" }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["bill", id] }); qc.invalidateQueries({ queryKey: ["bills"] }); toast({ title: "Bill voided" }); },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["bill", id] });
+      qc.invalidateQueries({ queryKey: ["bills"] });
+      toast({ title: "Bill voided" });
+    },
+    onError: (e: Error) =>
+      toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: () => apiFetch(`/bills/${id}`, { method: "DELETE" }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["bills"] }); navigate("/bills"); },
-    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["bills"] });
+      navigate("/bills");
+    },
+    onError: (e: Error) =>
+      toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
   if (isLoading) return <div className="text-sm text-muted-foreground">Loading…</div>;
@@ -70,14 +118,18 @@ export default function BillDetailPage() {
   return (
     <>
       <div className="mb-6">
-        <Link href="/bills" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
+        <Link
+          href="/bills"
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4"
+        >
           <ArrowLeft className="h-3 w-3" /> Back to bills
         </Link>
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold">Bill {bill.number}</h1>
             <p className="text-sm text-muted-foreground">
-              {bill.vendorName} · Issued {formatDate(bill.issueDate)} · Due {formatDate(bill.dueDate)}
+              {bill.vendorName} · Issued {formatDate(bill.issueDate)} · Due{" "}
+              {formatDate(bill.dueDate)}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -97,7 +149,9 @@ export default function BillDetailPage() {
                 </Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+                    <Button variant="ghost" size="icon">
+                      <Trash2 className="h-4 w-4 text-muted-foreground" />
+                    </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
@@ -106,7 +160,12 @@ export default function BillDetailPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+                      <AlertDialogAction
+                        onClick={() => deleteMutation.mutate()}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete
+                      </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
@@ -115,16 +174,25 @@ export default function BillDetailPage() {
             {!isDraft && !isVoid && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="destructive"><Ban className="h-4 w-4 mr-1" /> Void</Button>
+                  <Button variant="destructive">
+                    <Ban className="h-4 w-4 mr-1" /> Void
+                  </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Void this bill?</AlertDialogTitle>
-                    <AlertDialogDescription>This will mark the bill as void. This cannot be undone.</AlertDialogDescription>
+                    <AlertDialogDescription>
+                      This will mark the bill as void. This cannot be undone.
+                    </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => voidMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Void bill</AlertDialogAction>
+                    <AlertDialogAction
+                      onClick={() => voidMutation.mutate()}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Void bill
+                    </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
@@ -134,7 +202,9 @@ export default function BillDetailPage() {
       </div>
 
       <Card className="mb-6">
-        <CardHeader><CardTitle>Line items</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Line items</CardTitle>
+        </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
@@ -147,13 +217,19 @@ export default function BillDetailPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {bill.lineItems.map(li => (
+              {bill.lineItems.map((li) => (
                 <TableRow key={li.id}>
                   <TableCell>{li.description}</TableCell>
                   <TableCell className="text-right tabular-nums">{li.quantity}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatCents(li.unitPriceCents)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{li.taxCents > 0 ? formatCents(li.taxCents) : "—"}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatCents(li.amountCents)}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatCents(li.unitPriceCents)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {li.taxCents > 0 ? formatCents(li.taxCents) : "—"}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatCents(li.amountCents)}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>

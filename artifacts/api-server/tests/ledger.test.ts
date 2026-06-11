@@ -27,7 +27,10 @@ describe("postEntry", () => {
       ],
     });
     expect(entry.id).toBeTruthy();
-    const lines = await db.select().from(journalLines).where(eq(journalLines.journalEntryId, entry.id));
+    const lines = await db
+      .select()
+      .from(journalLines)
+      .where(eq(journalLines.journalEntryId, entry.id));
     expect(lines).toHaveLength(2);
     const debits = lines.reduce((s, l) => s + l.debitCents, 0);
     const credits = lines.reduce((s, l) => s + l.creditCents, 0);
@@ -63,7 +66,9 @@ describe("postEntry", () => {
   });
 
   it("is atomic: a failing lines insert leaves no orphan header", async () => {
-    const before = await db.select().from(journalEntries)
+    const before = await db
+      .select()
+      .from(journalEntries)
       .where(eq(journalEntries.organizationId, org.organizationId));
 
     // Second line violates the FK on journal_lines.account_id, which fails
@@ -81,7 +86,9 @@ describe("postEntry", () => {
       }),
     ).rejects.toThrow();
 
-    const after = await db.select().from(journalEntries)
+    const after = await db
+      .select()
+      .from(journalEntries)
       .where(eq(journalEntries.organizationId, org.organizationId));
     expect(after.length).toBe(before.length);
   });

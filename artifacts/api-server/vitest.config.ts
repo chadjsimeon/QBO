@@ -10,9 +10,7 @@ export default defineConfig({
     fileParallelism: false,
     testTimeout: 30_000,
     env: {
-      DATABASE_URL:
-        process.env.DATABASE_URL ??
-        "postgresql://qbo:qbo@postgres:5432/ledgerly_test",
+      DATABASE_URL: process.env.DATABASE_URL ?? "postgresql://qbo:qbo@postgres:5432/ledgerly_test",
       SESSION_SECRET: "test-secret",
       NODE_ENV: "test",
     },

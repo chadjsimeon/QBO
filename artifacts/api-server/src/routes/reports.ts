@@ -33,7 +33,10 @@ function buildTree(accts: AccountRow[]): AccountNode[] {
   }
   const sort = (nodes: AccountNode[], depth: number) => {
     nodes.sort((a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code));
-    for (const n of nodes) { n.depth = depth; sort(n.children, depth + 1); }
+    for (const n of nodes) {
+      n.depth = depth;
+      sort(n.children, depth + 1);
+    }
   };
   sort(roots, 0);
   return roots;
@@ -43,8 +46,20 @@ function displayAmt(type: string, netDebit: number) {
   return type === "INCOME" || type === "LIABILITY" || type === "EQUITY" ? -netDebit : netDebit;
 }
 
-function buildSection(type: string, tree: AccountNode[], net: Map<string, number>, nonZero: boolean) {
-  const rows: Array<{ id: string; code: string; name: string; amountCents: number; depth: number; isSubtotal?: boolean }> = [];
+function buildSection(
+  type: string,
+  tree: AccountNode[],
+  net: Map<string, number>,
+  nonZero: boolean,
+) {
+  const rows: Array<{
+    id: string;
+    code: string;
+    name: string;
+    amountCents: number;
+    depth: number;
+    isSubtotal?: boolean;
+  }> = [];
 
   function subtotalOf(node: AccountNode): number {
     const own = displayAmt(type, net.get(node.id) ?? 0);
@@ -62,13 +77,20 @@ function buildSection(type: string, tree: AccountNode[], net: Map<string, number
 
       if (n.children.length > 0) {
         walk(n.children);
-        rows.push({ id: `sub-${n.id}`, code: "", name: `Total ${n.name}`, amountCents: total, depth: n.depth, isSubtotal: true });
+        rows.push({
+          id: `sub-${n.id}`,
+          code: "",
+          name: `Total ${n.name}`,
+          amountCents: total,
+          depth: n.depth,
+          isSubtotal: true,
+        });
       }
     }
   }
 
   walk(tree);
-  const total = tree.filter(n => n.type === type).reduce((s, n) => s + subtotalOf(n), 0);
+  const total = tree.filter((n) => n.type === type).reduce((s, n) => s + subtotalOf(n), 0);
   return { label: type, rows, total };
 }
 
@@ -126,16 +148,17 @@ router.get("/reports/ar-aging", async (req, res) => {
   const orgId = req.session.organizationId!;
   const asOf = new Date();
 
-  const openInvoices = await db.select({ inv: invoices, customerName: customers.name })
+  const openInvoices = await db
+    .select({ inv: invoices, customerName: customers.name })
     .from(invoices)
     .leftJoin(customers, eq(invoices.customerId, customers.id))
     .where(eq(invoices.organizationId, orgId));
 
-  const eligible = openInvoices.filter(r =>
-    ["SENT", "PARTIAL", "OVERDUE"].includes(r.inv.status) && r.inv.balanceCents > 0
+  const eligible = openInvoices.filter(
+    (r) => ["SENT", "PARTIAL", "OVERDUE"].includes(r.inv.status) && r.inv.balanceCents > 0,
   );
 
-  const rows = eligible.map(r => {
+  const rows = eligible.map((r) => {
     const overdue = Math.floor((asOf.getTime() - r.inv.dueDate.getTime()) / (1000 * 60 * 60 * 24));
     return {
       id: r.inv.id,
@@ -149,15 +172,28 @@ router.get("/reports/ar-aging", async (req, res) => {
     };
   });
 
-  const totals = rows.reduce((acc, r) => ({
-    id: "totals", name: "Total",
-    totalCents: acc.totalCents + r.totalCents,
-    current: acc.current + r.current,
-    days30: acc.days30 + r.days30,
-    days60: acc.days60 + r.days60,
-    days90: acc.days90 + r.days90,
-    over90: acc.over90 + r.over90,
-  }), { id: "totals", name: "Total", totalCents: 0, current: 0, days30: 0, days60: 0, days90: 0, over90: 0 });
+  const totals = rows.reduce(
+    (acc, r) => ({
+      id: "totals",
+      name: "Total",
+      totalCents: acc.totalCents + r.totalCents,
+      current: acc.current + r.current,
+      days30: acc.days30 + r.days30,
+      days60: acc.days60 + r.days60,
+      days90: acc.days90 + r.days90,
+      over90: acc.over90 + r.over90,
+    }),
+    {
+      id: "totals",
+      name: "Total",
+      totalCents: 0,
+      current: 0,
+      days30: 0,
+      days60: 0,
+      days90: 0,
+      over90: 0,
+    },
+  );
 
   res.json({ rows, totals });
 });
@@ -166,16 +202,17 @@ router.get("/reports/ap-aging", async (req, res) => {
   const orgId = req.session.organizationId!;
   const asOf = new Date();
 
-  const openBills = await db.select({ bill: bills, vendorName: vendors.name })
+  const openBills = await db
+    .select({ bill: bills, vendorName: vendors.name })
     .from(bills)
     .leftJoin(vendors, eq(bills.vendorId, vendors.id))
     .where(eq(bills.organizationId, orgId));
 
-  const eligible = openBills.filter(r =>
-    ["OPEN", "PARTIAL", "OVERDUE"].includes(r.bill.status) && r.bill.balanceCents > 0
+  const eligible = openBills.filter(
+    (r) => ["OPEN", "PARTIAL", "OVERDUE"].includes(r.bill.status) && r.bill.balanceCents > 0,
   );
 
-  const rows = eligible.map(r => {
+  const rows = eligible.map((r) => {
     const overdue = Math.floor((asOf.getTime() - r.bill.dueDate.getTime()) / (1000 * 60 * 60 * 24));
     return {
       id: r.bill.id,
@@ -189,15 +226,28 @@ router.get("/reports/ap-aging", async (req, res) => {
     };
   });
 
-  const totals = rows.reduce((acc, r) => ({
-    id: "totals", name: "Total",
-    totalCents: acc.totalCents + r.totalCents,
-    current: acc.current + r.current,
-    days30: acc.days30 + r.days30,
-    days60: acc.days60 + r.days60,
-    days90: acc.days90 + r.days90,
-    over90: acc.over90 + r.over90,
-  }), { id: "totals", name: "Total", totalCents: 0, current: 0, days30: 0, days60: 0, days90: 0, over90: 0 });
+  const totals = rows.reduce(
+    (acc, r) => ({
+      id: "totals",
+      name: "Total",
+      totalCents: acc.totalCents + r.totalCents,
+      current: acc.current + r.current,
+      days30: acc.days30 + r.days30,
+      days60: acc.days60 + r.days60,
+      days90: acc.days90 + r.days90,
+      over90: acc.over90 + r.over90,
+    }),
+    {
+      id: "totals",
+      name: "Total",
+      totalCents: 0,
+      current: 0,
+      days30: 0,
+      days60: 0,
+      days90: 0,
+      over90: 0,
+    },
+  );
 
   res.json({ rows, totals });
 });

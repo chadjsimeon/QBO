@@ -1,5 +1,12 @@
 import { Router } from "express";
-import { db, accounts, journalEntries, journalLines, bankAccounts, reconciliations } from "@workspace/db";
+import {
+  db,
+  accounts,
+  journalEntries,
+  journalLines,
+  bankAccounts,
+  reconciliations,
+} from "@workspace/db";
 import { eq, and, gte, lte, ilike, asc, desc } from "drizzle-orm";
 import { requireAuth } from "../lib/session";
 import { getNetDebitByAccount } from "../lib/ledger";
@@ -27,9 +34,16 @@ interface LineRow {
 
 // Shared loader: pull every journal line matching the filters, newest-account
 // metadata, and the opening (pre-start) net-debit per account.
-async function loadLedger(orgId: string, opts: {
-  accountId?: string; start?: Date; end?: Date; sourceType?: string; q?: string;
-}) {
+async function loadLedger(
+  orgId: string,
+  opts: {
+    accountId?: string;
+    start?: Date;
+    end?: Date;
+    sourceType?: string;
+    q?: string;
+  },
+) {
   const conds = [eq(journalEntries.organizationId, orgId)];
   if (opts.accountId) conds.push(eq(journalLines.accountId, opts.accountId));
   if (opts.start) conds.push(gte(journalEntries.date, opts.start));
@@ -37,16 +51,17 @@ async function loadLedger(orgId: string, opts: {
   if (opts.sourceType) conds.push(eq(journalEntries.sourceType, opts.sourceType as any));
   if (opts.q) conds.push(ilike(journalEntries.memo, `%${opts.q}%`));
 
-  const lines = await db.select({
-    accountId: journalLines.accountId,
-    debitCents: journalLines.debitCents,
-    creditCents: journalLines.creditCents,
-    entryId: journalEntries.id,
-    date: journalEntries.date,
-    memo: journalEntries.memo,
-    sourceType: journalEntries.sourceType,
-    sourceId: journalEntries.sourceId,
-  })
+  const lines = await db
+    .select({
+      accountId: journalLines.accountId,
+      debitCents: journalLines.debitCents,
+      creditCents: journalLines.creditCents,
+      entryId: journalEntries.id,
+      date: journalEntries.date,
+      memo: journalEntries.memo,
+      sourceType: journalEntries.sourceType,
+      sourceId: journalEntries.sourceId,
+    })
     .from(journalLines)
     .innerJoin(journalEntries, eq(journalLines.journalEntryId, journalEntries.id))
     .where(and(...conds))
@@ -72,8 +87,9 @@ function groupByAccount(lines: LineRow[], opening: Map<string, number>, acctMap:
     if (!acct) continue;
     const openingCents = normalBalance(acct.type, opening.get(accountId) ?? 0);
     let running = openingCents;
-    let debitTotal = 0, creditTotal = 0;
-    const outLines = accLines.map(l => {
+    let debitTotal = 0,
+      creditTotal = 0;
+    const outLines = accLines.map((l) => {
       running += normalBalance(acct.type, l.debitCents - l.creditCents);
       debitTotal += l.debitCents;
       creditTotal += l.creditCents;
@@ -89,8 +105,18 @@ function groupByAccount(lines: LineRow[], opening: Map<string, number>, acctMap:
       };
     });
     groups.push({
-      account: { id: acct.id, code: acct.code, name: acct.name, type: acct.type, subtype: acct.subtype, isActive: acct.isActive },
-      openingCents, debitTotalCents: debitTotal, creditTotalCents: creditTotal, closingCents: running,
+      account: {
+        id: acct.id,
+        code: acct.code,
+        name: acct.name,
+        type: acct.type,
+        subtype: acct.subtype,
+        isActive: acct.isActive,
+      },
+      openingCents,
+      debitTotalCents: debitTotal,
+      creditTotalCents: creditTotal,
+      closingCents: running,
       lines: outLines,
     });
   }
@@ -116,7 +142,7 @@ router.get("/general-ledger", async (req, res) => {
     loadLedger(orgId, filters),
     db.select().from(accounts).where(eq(accounts.organizationId, orgId)),
   ]);
-  const acctMap = new Map(accts.map(a => [a.id, a]));
+  const acctMap = new Map(accts.map((a) => [a.id, a]));
   res.json({ accounts: groupByAccount(lines, opening, acctMap) });
 });
 
@@ -139,16 +165,21 @@ router.get("/general-ledger/summary", async (req, res) => {
   const movement = new Map<string, { d: number; c: number }>();
   for (const l of periodLines.lines) {
     const m = movement.get(l.accountId) ?? { d: 0, c: 0 };
-    m.d += l.debitCents; m.c += l.creditCents;
+    m.d += l.debitCents;
+    m.c += l.creditCents;
     movement.set(l.accountId, m);
   }
 
   const rows = accts
-    .filter(a => !typeFilter || a.type === typeFilter)
-    .map(a => {
+    .filter((a) => !typeFilter || a.type === typeFilter)
+    .map((a) => {
       const m = movement.get(a.id) ?? { d: 0, c: 0 };
       return {
-        id: a.id, code: a.code, name: a.name, type: a.type, isActive: a.isActive,
+        id: a.id,
+        code: a.code,
+        name: a.name,
+        type: a.type,
+        isActive: a.isActive,
         openingCents: normalBalance(a.type, opening.get(a.id) ?? 0),
         debitTotalCents: m.d,
         creditTotalCents: m.c,
@@ -167,9 +198,14 @@ router.get("/general-ledger/accounts/:id", async (req, res) => {
   const start = q.start ? new Date(q.start) : undefined;
   const end = q.end ? new Date(q.end + "T23:59:59.999Z") : undefined;
 
-  const [acct] = await db.select().from(accounts)
+  const [acct] = await db
+    .select()
+    .from(accounts)
     .where(and(eq(accounts.id, req.params.id), eq(accounts.organizationId, orgId)));
-  if (!acct) { res.status(404).json({ error: "Not found" }); return; }
+  if (!acct) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
 
   const { lines, opening } = await loadLedger(orgId, { accountId: req.params.id, start, end });
   const acctMap = new Map([[acct.id, acct]]);
@@ -177,13 +213,21 @@ router.get("/general-ledger/accounts/:id", async (req, res) => {
 
   // Reconciliation status: is this GL account linked to a bank account, and what
   // was the most recent reconciliation?
-  const [bank] = await db.select().from(bankAccounts)
+  const [bank] = await db
+    .select()
+    .from(bankAccounts)
     .where(and(eq(bankAccounts.accountId, acct.id), eq(bankAccounts.organizationId, orgId)));
-  let reconciliation: { status: string; statementDate: string; bankAccountId: string } | null = null;
+  let reconciliation: { status: string; statementDate: string; bankAccountId: string } | null =
+    null;
   if (bank) {
-    const [rec] = await db.select().from(reconciliations)
-      .where(and(eq(reconciliations.bankAccountId, bank.id), eq(reconciliations.organizationId, orgId)))
-      .orderBy(desc(reconciliations.statementDate)).limit(1);
+    const [rec] = await db
+      .select()
+      .from(reconciliations)
+      .where(
+        and(eq(reconciliations.bankAccountId, bank.id), eq(reconciliations.organizationId, orgId)),
+      )
+      .orderBy(desc(reconciliations.statementDate))
+      .limit(1);
     reconciliation = {
       status: rec ? rec.status : "NONE",
       statementDate: rec ? rec.statementDate.toISOString() : "",
@@ -192,8 +236,23 @@ router.get("/general-ledger/accounts/:id", async (req, res) => {
   }
 
   res.json({
-    account: { id: acct.id, code: acct.code, name: acct.name, type: acct.type, subtype: acct.subtype, isActive: acct.isActive, description: acct.description },
-    ledger: group ?? { account: acct, openingCents: normalBalance(acct.type, opening.get(acct.id) ?? 0), debitTotalCents: 0, creditTotalCents: 0, closingCents: normalBalance(acct.type, opening.get(acct.id) ?? 0), lines: [] },
+    account: {
+      id: acct.id,
+      code: acct.code,
+      name: acct.name,
+      type: acct.type,
+      subtype: acct.subtype,
+      isActive: acct.isActive,
+      description: acct.description,
+    },
+    ledger: group ?? {
+      account: acct,
+      openingCents: normalBalance(acct.type, opening.get(acct.id) ?? 0),
+      debitTotalCents: 0,
+      creditTotalCents: 0,
+      closingCents: normalBalance(acct.type, opening.get(acct.id) ?? 0),
+      lines: [],
+    },
     reconciliation,
   });
 });

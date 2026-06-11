@@ -4,14 +4,30 @@ import { apiFetch, formatCents } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface AgingRow {
-  id: string; name: string; totalCents: number;
-  current: number; days30: number; days60: number; days90: number; over90: number;
+  id: string;
+  name: string;
+  totalCents: number;
+  current: number;
+  days30: number;
+  days60: number;
+  days90: number;
+  over90: number;
 }
 
-interface AgingReport { rows: AgingRow[]; totals: AgingRow; }
+interface AgingReport {
+  rows: AgingRow[];
+  totals: AgingRow;
+}
 
 function AgingTable({ data }: { data: AgingReport }) {
   const cols = [
@@ -27,28 +43,38 @@ function AgingTable({ data }: { data: AgingReport }) {
       <TableHeader>
         <TableRow>
           <TableHead>Name</TableHead>
-          {cols.map(c => <TableHead key={c.key} className="text-right">{c.label}</TableHead>)}
+          {cols.map((c) => (
+            <TableHead key={c.key} className="text-right">
+              {c.label}
+            </TableHead>
+          ))}
           <TableHead className="text-right">Total</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {data.rows.map(r => (
+        {data.rows.map((r) => (
           <TableRow key={r.id}>
             <TableCell>{r.name}</TableCell>
-            {cols.map(c => (
+            {cols.map((c) => (
               <TableCell key={c.key} className="text-right tabular-nums">
                 {r[c.key] > 0 ? formatCents(r[c.key]) : "—"}
               </TableCell>
             ))}
-            <TableCell className="text-right tabular-nums font-medium">{formatCents(r.totalCents)}</TableCell>
+            <TableCell className="text-right tabular-nums font-medium">
+              {formatCents(r.totalCents)}
+            </TableCell>
           </TableRow>
         ))}
         <TableRow className="bg-muted/30 font-bold border-t-2">
           <TableCell>Total</TableCell>
-          {cols.map(c => (
-            <TableCell key={c.key} className="text-right tabular-nums">{formatCents(data.totals[c.key])}</TableCell>
+          {cols.map((c) => (
+            <TableCell key={c.key} className="text-right tabular-nums">
+              {formatCents(data.totals[c.key])}
+            </TableCell>
           ))}
-          <TableCell className="text-right tabular-nums">{formatCents(data.totals.totalCents)}</TableCell>
+          <TableCell className="text-right tabular-nums">
+            {formatCents(data.totals.totalCents)}
+          </TableCell>
         </TableRow>
       </TableBody>
     </Table>
@@ -65,7 +91,9 @@ function ArAgingTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-muted-foreground">Outstanding invoices grouped by days past due</p>
+          <p className="text-sm text-muted-foreground">
+            Outstanding invoices grouped by days past due
+          </p>
         </div>
         <Button onClick={() => refetch()} disabled={isFetching} variant="outline" size="sm">
           {isFetching ? "Loading…" : "Refresh"}
@@ -74,7 +102,11 @@ function ArAgingTab() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : data && data.rows.length > 0 ? (
-        <Card><CardContent className="p-0"><AgingTable data={data} /></CardContent></Card>
+        <Card>
+          <CardContent className="p-0">
+            <AgingTable data={data} />
+          </CardContent>
+        </Card>
       ) : (
         <p className="text-sm text-muted-foreground">No open receivables.</p>
       )}
@@ -92,7 +124,9 @@ function ApAgingTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-muted-foreground">Outstanding bills grouped by days past due</p>
+          <p className="text-sm text-muted-foreground">
+            Outstanding bills grouped by days past due
+          </p>
         </div>
         <Button onClick={() => refetch()} disabled={isFetching} variant="outline" size="sm">
           {isFetching ? "Loading…" : "Refresh"}
@@ -101,7 +135,11 @@ function ApAgingTab() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : data && data.rows.length > 0 ? (
-        <Card><CardContent className="p-0"><AgingTable data={data} /></CardContent></Card>
+        <Card>
+          <CardContent className="p-0">
+            <AgingTable data={data} />
+          </CardContent>
+        </Card>
       ) : (
         <p className="text-sm text-muted-foreground">No open payables.</p>
       )}
@@ -125,8 +163,12 @@ export default function ManagementReportsPage() {
           <TabsTrigger value="ar">A/R Aging</TabsTrigger>
           <TabsTrigger value="ap">A/P Aging</TabsTrigger>
         </TabsList>
-        <TabsContent value="ar"><ArAgingTab /></TabsContent>
-        <TabsContent value="ap"><ApAgingTab /></TabsContent>
+        <TabsContent value="ar">
+          <ArAgingTab />
+        </TabsContent>
+        <TabsContent value="ap">
+          <ApAgingTab />
+        </TabsContent>
       </Tabs>
     </>
   );

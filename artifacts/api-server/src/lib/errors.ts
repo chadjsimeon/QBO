@@ -9,6 +9,7 @@ export class HttpError extends Error {
   }
 }
 
-export const badRequest = (message: string, details?: unknown) => new HttpError(400, message, details);
+export const badRequest = (message: string, details?: unknown) =>
+  new HttpError(400, message, details);
 export const notFound = (message = "Not found") => new HttpError(404, message);
 export const conflict = (message: string) => new HttpError(409, message);
