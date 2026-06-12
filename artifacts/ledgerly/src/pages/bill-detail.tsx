@@ -1,7 +1,14 @@
 import { useRoute, useLocation } from "wouter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ban, Trash2, ArrowLeft, CheckCircle } from "lucide-react";
 import { Link } from "wouter";
+import {
+  useGetBill,
+  getGetBillQueryKey,
+  getListBillsQueryKey,
+  getVoidBillMutationOptions,
+  getDeleteBillMutationOptions,
+} from "@workspace/api-client-react";
 import { apiFetch, formatCents, formatDate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,30 +43,6 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline" | "dest
   VOID: "secondary",
 };
 
-interface LineItem {
-  id: string;
-  description: string;
-  quantity: number;
-  unitPriceCents: number;
-  amountCents: number;
-  taxCents: number;
-}
-
-interface Bill {
-  id: string;
-  number: string;
-  vendorId: string;
-  vendorName: string | null;
-  status: string;
-  issueDate: string;
-  dueDate: string;
-  subtotalCents: number;
-  taxCents: number;
-  totalCents: number;
-  balanceCents: number;
-  lineItems: LineItem[];
-}
-
 export default function BillDetailPage() {
   const [, params] = useRoute("/bills/:id");
   const [, navigate] = useLocation();
@@ -67,47 +50,48 @@ export default function BillDetailPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
 
-  const {
-    data: bill,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ["bill", id],
-    queryFn: () => apiFetch<Bill>(`/bills/${id}`),
-    enabled: !!id,
-  });
+  const { data: bill, isLoading, error } = useGetBill(id);
 
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: getGetBillQueryKey(id) });
+    qc.invalidateQueries({ queryKey: getListBillsQueryKey() });
+  };
+  const onError = (e: Error) =>
+    toast({ title: "Error", description: e.message, variant: "destructive" });
+
+  // Enter isn't in the OpenAPI spec yet; hand-rolled call, generated-key invalidation.
   const enterMutation = useMutation({
     mutationFn: () => apiFetch(`/bills/${id}/enter`, { method: "POST" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["bill", id] });
-      qc.invalidateQueries({ queryKey: ["bills"] });
+      refresh();
       toast({ title: "Bill entered — status is now OPEN" });
     },
-    onError: (e: Error) =>
-      toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError,
   });
 
-  const voidMutation = useMutation({
-    mutationFn: () => apiFetch(`/bills/${id}/void`, { method: "POST" }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["bill", id] });
-      qc.invalidateQueries({ queryKey: ["bills"] });
-      toast({ title: "Bill voided" });
-    },
-    onError: (e: Error) =>
-      toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
+  const voidMutation = useMutation(
+    getVoidBillMutationOptions({
+      mutation: {
+        onSuccess: () => {
+          refresh();
+          toast({ title: "Bill voided" });
+        },
+        onError,
+      },
+    }),
+  );
 
-  const deleteMutation = useMutation({
-    mutationFn: () => apiFetch(`/bills/${id}`, { method: "DELETE" }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["bills"] });
-      navigate("/bills");
-    },
-    onError: (e: Error) =>
-      toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
+  const deleteMutation = useMutation(
+    getDeleteBillMutationOptions({
+      mutation: {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: getListBillsQueryKey() });
+          navigate("/bills");
+        },
+        onError,
+      },
+    }),
+  );
 
   if (isLoading) return <div className="text-sm text-muted-foreground">Loading…</div>;
   if (error || !bill) return <div className="text-sm text-destructive">Bill not found.</div>;
@@ -161,7 +145,7 @@ export default function BillDetailPage() {
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={() => deleteMutation.mutate()}
+                        onClick={() => deleteMutation.mutate({ id })}
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       >
                         Delete
@@ -188,7 +172,7 @@ export default function BillDetailPage() {
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction
-                      onClick={() => voidMutation.mutate()}
+                      onClick={() => voidMutation.mutate({ id })}
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
                       Void bill
@@ -224,9 +208,8 @@ export default function BillDetailPage() {
                   <TableCell className="text-right tabular-nums">
                     {formatCents(li.unitPriceCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {li.taxCents > 0 ? formatCents(li.taxCents) : "—"}
-                  </TableCell>
+                  {/* Per-line tax is not stored; document-level tax shows in the totals. */}
+                  <TableCell className="text-right tabular-nums">—</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatCents(li.amountCents)}
                   </TableCell>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useListAccounts } from "@workspace/api-client-react";
 import { Plus, Trash2, ArrowLeft } from "lucide-react";
 import { apiFetch, formatCents, toDateInput } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -10,12 +11,6 @@ import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
-interface Account {
-  id: string;
-  code: string;
-  name: string;
-  type: string;
-}
 interface JeLine {
   accountId: string;
   debitCents: number;
@@ -33,10 +28,7 @@ export default function JournalEntryFormPage() {
   const [memo, setMemo] = useState("");
   const [lines, setLines] = useState<JeLine[]>([{ ...EMPTY }, { ...EMPTY }]);
 
-  const { data: accounts = [] } = useQuery({
-    queryKey: ["accounts"],
-    queryFn: () => apiFetch<Account[]>("/accounts"),
-  });
+  const { data: accounts = [] } = useListAccounts();
   const postable = accounts.filter((a) => a.type !== undefined);
 
   const totalDebits = lines.reduce((s, l) => s + (l.debitCents || 0), 0);

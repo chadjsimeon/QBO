@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute, Link, useLocation } from "wouter";
 import { ArrowLeft, ArrowRight } from "lucide-react";
+import { getListInvoicesQueryKey } from "@workspace/api-client-react";
 import { apiFetch, formatCents, formatDate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -64,7 +65,7 @@ export default function EstimateDetailPage() {
     mutationFn: () =>
       apiFetch<{ invoiceId: string }>(`/estimates/${id}/convert`, { method: "POST" }),
     onSuccess: (d) => {
-      qc.invalidateQueries({ queryKey: ["invoices"] });
+      qc.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
       toast({ title: "Converted to invoice" });
       navigate(`/invoices/${d.invoiceId}`);
     },

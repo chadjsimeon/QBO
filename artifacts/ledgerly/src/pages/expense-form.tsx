@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, useSearch, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useListVendors, useListAccounts, useListTaxRates } from "@workspace/api-client-react";
 import { Plus, Trash2, ArrowLeft } from "lucide-react";
 import { apiFetch, formatCents, toDateInput } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -10,10 +11,6 @@ import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
-interface Vendor {
-  id: string;
-  name: string;
-}
 interface Account {
   id: string;
   code: string;
@@ -21,11 +18,6 @@ interface Account {
   type: string;
   subtype?: string;
   systemRole?: string | null;
-}
-interface TaxRate {
-  id: string;
-  name: string;
-  rateBps: number;
 }
 interface Line {
   description: string;
@@ -63,18 +55,9 @@ export default function ExpenseFormPage() {
   });
   const [lines, setLines] = useState<Line[]>([{ ...EMPTY }]);
 
-  const { data: vendors = [] } = useQuery({
-    queryKey: ["vendors"],
-    queryFn: () => apiFetch<Vendor[]>("/vendors"),
-  });
-  const { data: accounts = [] } = useQuery({
-    queryKey: ["accounts"],
-    queryFn: () => apiFetch<Account[]>("/accounts"),
-  });
-  const { data: taxRates = [] } = useQuery({
-    queryKey: ["tax-rates"],
-    queryFn: () => apiFetch<TaxRate[]>("/tax-rates"),
-  });
+  const { data: vendors = [] } = useListVendors();
+  const { data: accounts = [] } = useListAccounts();
+  const { data: taxRates = [] } = useListTaxRates();
   const { data: count } = useQuery({
     queryKey: ["expenses"],
     queryFn: () => apiFetch<unknown[]>("/expenses"),

@@ -751,6 +751,7 @@ components:
         systemRole: { type: ["string", "null"] }
         cashFlowCategory: { type: string }
         sortOrder: { type: integer }
+        description: { type: ["string", "null"] }
 
     TaxRate:
       type: object

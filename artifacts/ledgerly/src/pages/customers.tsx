@@ -1,7 +1,15 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import { apiFetch } from "@/lib/api";
+import {
+  useListCustomers,
+  useCreateCustomer,
+  getUpdateCustomerMutationOptions,
+  getDeleteCustomerMutationOptions,
+  getListCustomersQueryKey,
+  type Customer,
+  type CustomerInput,
+} from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,22 +31,13 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/empty-state";
 
-interface Customer {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  billingAddress: string | null;
-  createdAt: string;
-}
-
 function CustomerForm({
   initial,
   onSave,
   onClose,
 }: {
   initial?: Partial<Customer>;
-  onSave: (data: Partial<Customer>) => void;
+  onSave: (data: CustomerInput) => void;
   onClose: () => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
@@ -84,37 +83,26 @@ export default function CustomersPage() {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; editing?: Customer }>({ open: false });
 
-  const { data: customers = [] } = useQuery({
-    queryKey: ["customers"],
-    queryFn: () => apiFetch<Customer[]>("/customers"),
-  });
+  const { data: customers = [] } = useListCustomers();
 
-  const create = useMutation({
-    mutationFn: (data: Partial<Customer>) =>
-      apiFetch("/customers", { method: "POST", body: JSON.stringify(data) }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["customers"] });
-      setDialog({ open: false });
-    },
-  });
+  const onSaved = () => {
+    qc.invalidateQueries({ queryKey: getListCustomersQueryKey() });
+    setDialog({ open: false });
+  };
 
-  const update = useMutation({
-    mutationFn: ({ id, ...data }: Partial<Customer>) =>
-      apiFetch(`/customers/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["customers"] });
-      setDialog({ open: false });
-    },
-  });
+  const create = useCreateCustomer({ mutation: { onSuccess: onSaved } });
+  const update = useMutation(
+    getUpdateCustomerMutationOptions({ mutation: { onSuccess: onSaved } }),
+  );
+  const remove = useMutation(
+    getDeleteCustomerMutationOptions({
+      mutation: { onSuccess: () => qc.invalidateQueries({ queryKey: getListCustomersQueryKey() }) },
+    }),
+  );
 
-  const remove = useMutation({
-    mutationFn: (id: string) => apiFetch(`/customers/${id}`, { method: "DELETE" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["customers"] }),
-  });
-
-  function onSave(data: Partial<Customer>) {
-    if (dialog.editing) update.mutate({ ...data, id: dialog.editing.id });
-    else create.mutate(data);
+  function onSave(data: CustomerInput) {
+    if (dialog.editing) update.mutate({ id: dialog.editing.id, data });
+    else create.mutate({ data });
   }
 
   return (
@@ -169,7 +157,7 @@ export default function CustomersPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => confirm("Delete customer?") && remove.mutate(c.id)}
+                        onClick={() => confirm("Delete customer?") && remove.mutate({ id: c.id })}
                       >
                         <Trash2 className="h-4 w-4 text-muted-foreground" />
                       </Button>

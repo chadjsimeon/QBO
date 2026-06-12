@@ -1,32 +1,32 @@
 import { useState, useEffect } from "react";
 import { useRoute, useLocation } from "wouter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, ArrowLeft } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
-import { apiFetch, formatCents, toDateInput } from "@/lib/api";
+import {
+  useListVendors,
+  useListAccounts,
+  useListTaxRates,
+  useListBills,
+  useGetBill,
+  useCreateBill,
+  getUpdateBillMutationOptions,
+  getListBillsQueryKey,
+  getGetBillQueryKey,
+  type DocumentInput,
+} from "@workspace/api-client-react";
+import { toDateInput } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
+import { LineItemsEditor } from "@/components/line-items-editor";
+import { useLineItems } from "@/hooks/use-line-items";
+import { nextDocNumber } from "@/hooks/use-next-doc-number";
 import { useToast } from "@/hooks/use-toast";
 
-interface Vendor {
-  id: string;
-  name: string;
-}
-interface Account {
-  id: string;
-  code: string;
-  name: string;
-  type: string;
-}
-interface TaxRate {
-  id: string;
-  name: string;
-  rateBps: number;
-}
 interface LineItem {
   description: string;
   quantity: number;
@@ -53,7 +53,7 @@ export default function BillFormPage() {
   const [, editParams] = useRoute("/bills/:id/edit");
   const [, navigate] = useLocation();
   const isEdit = !!editParams?.id;
-  const editId = editParams?.id;
+  const editId = editParams?.id ?? "";
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -64,35 +64,24 @@ export default function BillFormPage() {
     issueDate: toDateInput(today),
     dueDate: toDateInput(addDays(today, 30)),
   });
-  const [lines, setLines] = useState<LineItem[]>([{ ...EMPTY_LINE }]);
+  const { lines, setLines, updateLine, addLine, removeLine, subtotalCents } = useLineItems(
+    EMPTY_LINE,
+    (l) => l.quantity * l.unitPriceCents,
+  );
 
-  const { data: vendors = [] } = useQuery({
-    queryKey: ["vendors"],
-    queryFn: () => apiFetch<Vendor[]>("/vendors"),
+  const { data: vendors = [] } = useListVendors();
+  const { data: accounts = [] } = useListAccounts();
+  const { data: taxRates = [] } = useListTaxRates();
+  const { data: billCount } = useListBills<number>({
+    query: { select: (d) => d.length, queryKey: getListBillsQueryKey() },
   });
-  const { data: accounts = [] } = useQuery({
-    queryKey: ["accounts"],
-    queryFn: () => apiFetch<Account[]>("/accounts"),
-  });
-  const { data: taxRates = [] } = useQuery({
-    queryKey: ["tax-rates"],
-    queryFn: () => apiFetch<TaxRate[]>("/tax-rates"),
-  });
-  const { data: billCount } = useQuery({
-    queryKey: ["bills"],
-    queryFn: () => apiFetch<unknown[]>("/bills"),
-    select: (d: unknown[]) => d.length,
-  });
-
-  const { data: existing } = useQuery({
-    queryKey: ["bill", editId],
-    queryFn: () => apiFetch<any>(`/bills/${editId}`),
-    enabled: isEdit,
+  const { data: existing } = useGetBill(editId, {
+    query: { enabled: isEdit, queryKey: getGetBillQueryKey(editId) },
   });
 
   useEffect(() => {
     if (!isEdit && billCount !== undefined && !form.number) {
-      setForm((f) => ({ ...f, number: `BILL-${String(billCount + 1).padStart(4, "0")}` }));
+      setForm((f) => ({ ...f, number: nextDocNumber("BILL", billCount) }));
     }
   }, [billCount, isEdit]);
 
@@ -105,7 +94,7 @@ export default function BillFormPage() {
         dueDate: toDateInput(existing.dueDate),
       });
       setLines(
-        existing.lineItems.map((li: any) => ({
+        existing.lineItems.map((li) => ({
           description: li.description,
           quantity: li.quantity,
           unitPriceCents: li.unitPriceCents,
@@ -118,32 +107,31 @@ export default function BillFormPage() {
 
   const expenseAccounts = accounts.filter((a) => a.type === "EXPENSE");
 
-  const saveMutation = useMutation({
-    mutationFn: () => {
-      const body = {
-        ...form,
-        lines: lines.map((l) => ({ ...l, taxRateId: l.taxRateId || undefined })),
-      };
-      if (isEdit)
-        return apiFetch(`/bills/${editId}`, { method: "PATCH", body: JSON.stringify(body) });
-      return apiFetch("/bills", { method: "POST", body: JSON.stringify(body) });
-    },
-    onSuccess: (data: any) => {
-      qc.invalidateQueries({ queryKey: ["bills"] });
-      toast({ title: isEdit ? "Bill updated" : "Bill created" });
-      navigate(`/bills/${data.id}`);
-    },
-    onError: (e: Error) =>
-      toast({ title: "Error", description: e.message, variant: "destructive" }),
+  const onSaved = (id: string) => {
+    qc.invalidateQueries({ queryKey: getListBillsQueryKey() });
+    if (isEdit) qc.invalidateQueries({ queryKey: getGetBillQueryKey(editId) });
+    toast({ title: isEdit ? "Bill updated" : "Bill created" });
+    navigate(`/bills/${id}`);
+  };
+  const onError = (e: Error) =>
+    toast({ title: "Error", description: e.message, variant: "destructive" });
+
+  const createMutation = useCreateBill({
+    mutation: { onSuccess: (d) => onSaved(d.id), onError },
   });
+  const updateMutation = useMutation(
+    getUpdateBillMutationOptions({ mutation: { onSuccess: (d) => onSaved(d.id), onError } }),
+  );
 
-  const updateLine = (i: number, field: keyof LineItem, value: string | number) =>
-    setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, [field]: value } : l)));
-
-  const addLine = () => setLines((ls) => [...ls, { ...EMPTY_LINE }]);
-  const removeLine = (i: number) => setLines((ls) => ls.filter((_, idx) => idx !== i));
-
-  const subtotal = lines.reduce((s, l) => s + l.quantity * l.unitPriceCents, 0);
+  const save = () => {
+    const data: DocumentInput = {
+      ...form,
+      lines: lines.map((l) => ({ ...l, taxRateId: l.taxRateId || undefined })),
+    };
+    if (isEdit) updateMutation.mutate({ id: editId, data });
+    else createMutation.mutate({ data });
+  };
+  const saving = createMutation.isPending || updateMutation.isPending;
 
   if (vendors.length === 0) {
     return (
@@ -182,7 +170,7 @@ export default function BillFormPage() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          saveMutation.mutate();
+          save();
         }}
         className="space-y-6"
       >
@@ -239,96 +227,79 @@ export default function BillFormPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Line items</CardTitle>
-              <Button type="button" variant="outline" size="sm" onClick={addLine}>
-                <Plus className="h-4 w-4 mr-1" /> Add line
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {lines.map((line, i) => (
-              <div key={i} className="grid grid-cols-12 gap-2 items-start">
-                <div className="col-span-12 sm:col-span-4">
-                  <Input
-                    placeholder="Description"
-                    value={line.description}
-                    onChange={(e) => updateLine(i, "description", e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="col-span-4 sm:col-span-2">
-                  <Input
-                    type="number"
-                    placeholder="Qty"
-                    min={1}
-                    step={1}
-                    value={line.quantity}
-                    onChange={(e) => updateLine(i, "quantity", parseInt(e.target.value) || 1)}
-                    required
-                  />
-                </div>
-                <div className="col-span-8 sm:col-span-2">
-                  <Input
-                    type="number"
-                    placeholder="Price (cents)"
-                    min={0}
-                    step={1}
-                    value={line.unitPriceCents}
-                    onChange={(e) => updateLine(i, "unitPriceCents", parseInt(e.target.value) || 0)}
-                    required
-                  />
-                </div>
-                <div className="col-span-6 sm:col-span-2">
-                  <Select
-                    value={line.accountId}
-                    onChange={(e) => updateLine(i, "accountId", e.target.value)}
-                  >
-                    <option value="">Account…</option>
-                    {expenseAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.code} {a.name}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="col-span-5 sm:col-span-1">
-                  <Select
-                    value={line.taxRateId}
-                    onChange={(e) => updateLine(i, "taxRateId", e.target.value)}
-                  >
-                    <option value="">No tax</option>
-                    {taxRates.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="col-span-1 flex items-center justify-center">
-                  {lines.length > 1 && (
-                    <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(i)}>
-                      <Trash2 className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  )}
-                </div>
+        <LineItemsEditor
+          lines={lines}
+          addLine={addLine}
+          removeLine={removeLine}
+          subtotalCents={subtotalCents}
+          renderRow={(line, i) => (
+            <>
+              <div className="col-span-12 sm:col-span-4">
+                <Input
+                  placeholder="Description"
+                  value={line.description}
+                  onChange={(e) => updateLine(i, "description", e.target.value)}
+                  required
+                />
               </div>
-            ))}
-            <div className="flex justify-end pt-2 text-sm">
-              <span className="text-muted-foreground mr-4">Subtotal:</span>
-              <span className="tabular-nums font-medium">{formatCents(subtotal)}</span>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="col-span-4 sm:col-span-2">
+                <Input
+                  type="number"
+                  placeholder="Qty"
+                  min={1}
+                  step={1}
+                  value={line.quantity}
+                  onChange={(e) => updateLine(i, "quantity", parseInt(e.target.value) || 1)}
+                  required
+                />
+              </div>
+              <div className="col-span-8 sm:col-span-2">
+                <Input
+                  type="number"
+                  placeholder="Price (cents)"
+                  min={0}
+                  step={1}
+                  value={line.unitPriceCents}
+                  onChange={(e) => updateLine(i, "unitPriceCents", parseInt(e.target.value) || 0)}
+                  required
+                />
+              </div>
+              <div className="col-span-6 sm:col-span-2">
+                <Select
+                  value={line.accountId}
+                  onChange={(e) => updateLine(i, "accountId", e.target.value)}
+                >
+                  <option value="">Account…</option>
+                  {expenseAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.code} {a.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div className="col-span-5 sm:col-span-1">
+                <Select
+                  value={line.taxRateId}
+                  onChange={(e) => updateLine(i, "taxRateId", e.target.value)}
+                >
+                  <option value="">No tax</option>
+                  {taxRates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            </>
+          )}
+        />
 
         <div className="flex justify-end gap-3">
           <Button type="button" variant="outline" asChild>
             <Link href={isEdit ? `/bills/${editId}` : "/bills"}>Cancel</Link>
           </Button>
-          <Button type="submit" disabled={saveMutation.isPending || !form.contactId}>
-            {saveMutation.isPending ? "Saving…" : "Save"}
+          <Button type="submit" disabled={saving || !form.contactId}>
+            {saving ? "Saving…" : "Save draft"}
           </Button>
         </div>
       </form>

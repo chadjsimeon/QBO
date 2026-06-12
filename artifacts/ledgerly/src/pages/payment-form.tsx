@@ -1,6 +1,15 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useListCustomers,
+  useListVendors,
+  useCreatePayment,
+  getListPaymentsQueryKey,
+  getListInvoicesQueryKey,
+  getListBillsQueryKey,
+  type PaymentInput,
+} from "@workspace/api-client-react";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import { apiFetch, formatCents, toDateInput } from "@/lib/api";
@@ -19,14 +28,6 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 
-interface Customer {
-  id: string;
-  name: string;
-}
-interface Vendor {
-  id: string;
-  name: string;
-}
 interface OpenInvoice {
   id: string;
   number: string;
@@ -61,14 +62,8 @@ export default function PaymentFormPage() {
   const [memo, setMemo] = useState("");
   const [allocations, setAllocations] = useState<Allocation[]>([]);
 
-  const { data: customers = [] } = useQuery({
-    queryKey: ["customers"],
-    queryFn: () => apiFetch<Customer[]>("/customers"),
-  });
-  const { data: vendors = [] } = useQuery({
-    queryKey: ["vendors"],
-    queryFn: () => apiFetch<Vendor[]>("/vendors"),
-  });
+  const { data: customers = [] } = useListCustomers();
+  const { data: vendors = [] } = useListVendors();
 
   const contacts = direction === "RECEIVED" ? customers : vendors;
   const contactLabel = direction === "RECEIVED" ? "Customer" : "Vendor";
@@ -129,34 +124,44 @@ export default function PaymentFormPage() {
     setAllocations([]);
   }
 
-  const saveMutation = useMutation({
-    mutationFn: () => {
-      if (allocations.length === 0) throw new Error("Apply to at least one document");
-      const body: Record<string, unknown> = {
-        direction,
-        amountCents: totalAllocatedCents,
-        date,
-        method,
-        memo: memo || undefined,
-        allocations: allocations.map((a) => ({
-          ...(direction === "RECEIVED" ? { invoiceId: a.docId } : { billId: a.docId }),
-          amountCents: a.amountCents,
-        })),
-      };
-      if (direction === "RECEIVED") body.customerId = contactId || undefined;
-      else body.vendorId = contactId || undefined;
-      return apiFetch("/payments", { method: "POST", body: JSON.stringify(body) });
+  const saveMutation = useCreatePayment({
+    mutation: {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getListPaymentsQueryKey() });
+        qc.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
+        qc.invalidateQueries({ queryKey: getListBillsQueryKey() });
+        toast({ title: "Payment recorded" });
+        navigate("/payments");
+      },
+      onError: (e: Error) =>
+        toast({ title: "Error", description: e.message, variant: "destructive" }),
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["payments"] });
-      qc.invalidateQueries({ queryKey: ["invoices"] });
-      qc.invalidateQueries({ queryKey: ["bills"] });
-      toast({ title: "Payment recorded" });
-      navigate("/payments");
-    },
-    onError: (e: Error) =>
-      toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
+
+  const save = () => {
+    if (allocations.length === 0) {
+      toast({
+        title: "Error",
+        description: "Apply to at least one document",
+        variant: "destructive",
+      });
+      return;
+    }
+    const data: PaymentInput = {
+      direction,
+      amountCents: totalAllocatedCents,
+      date,
+      method,
+      memo: memo || undefined,
+      customerId: direction === "RECEIVED" ? contactId || undefined : undefined,
+      vendorId: direction === "SENT" ? contactId || undefined : undefined,
+      allocations: allocations.map((a) => ({
+        ...(direction === "RECEIVED" ? { invoiceId: a.docId } : { billId: a.docId }),
+        amountCents: a.amountCents,
+      })),
+    };
+    saveMutation.mutate({ data });
+  };
 
   return (
     <>
@@ -173,7 +178,7 @@ export default function PaymentFormPage() {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          saveMutation.mutate();
+          save();
         }}
         className="space-y-6 max-w-2xl"
       >

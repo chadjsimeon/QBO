@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
+import { useListAccounts } from "@workspace/api-client-react";
 import { Download, Printer, Search } from "lucide-react";
 import { apiFetch, formatCents, formatDate } from "@/lib/api";
 import { downloadCsv, centsToPlain } from "@/lib/export";
@@ -87,10 +88,7 @@ export default function GeneralLedgerPage() {
   const [typeFilter, setTypeFilter] = useState("");
   const [sortBy, setSortBy] = useState<"code" | "balance" | "type">("code");
 
-  const { data: accounts = [] } = useQuery({
-    queryKey: ["accounts"],
-    queryFn: () => apiFetch<Account[]>("/accounts"),
-  });
+  const { data: accounts = [] } = useListAccounts();
 
   const glQs = new URLSearchParams();
   if (accountId) glQs.set("accountId", accountId);

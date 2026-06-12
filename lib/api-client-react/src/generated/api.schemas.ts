@@ -99,6 +99,8 @@ export interface Account {
   systemRole?: string | null;
   cashFlowCategory: string;
   sortOrder: number;
+  /** @nullable */
+  description?: string | null;
 }
 
 export interface TaxRate {

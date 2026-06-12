@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
+import { useListBills, getListBillsQueryKey } from "@workspace/api-client-react";
 import { apiFetch, formatCents, formatDate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,14 +40,6 @@ interface VendorCredit {
   lineItems: LineItem[];
   applications: Application[];
 }
-interface Bill {
-  id: string;
-  number: string;
-  vendorId: string;
-  status: string;
-  balanceCents: number;
-}
-
 export default function VendorCreditDetailPage() {
   const [, params] = useRoute("/vendor-credits/:id");
   const id = params?.id;
@@ -59,10 +52,7 @@ export default function VendorCreditDetailPage() {
     queryFn: () => apiFetch<VendorCredit>(`/vendor-credits/${id}`),
     enabled: !!id,
   });
-  const { data: bills = [] } = useQuery({
-    queryKey: ["bills"],
-    queryFn: () => apiFetch<Bill[]>("/bills"),
-  });
+  const { data: bills = [] } = useListBills();
 
   const apply = useMutation({
     mutationFn: (applications: Array<{ billId: string; amountCents: number }>) =>
@@ -72,7 +62,7 @@ export default function VendorCreditDetailPage() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["vendor-credit", id] });
-      qc.invalidateQueries({ queryKey: ["bills"] });
+      qc.invalidateQueries({ queryKey: getListBillsQueryKey() });
       setAmounts({});
       toast({ title: "Credit applied" });
     },

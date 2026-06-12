@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-import { apiFetch, formatCents, formatDate } from "@/lib/api";
+import { useListPayments } from "@workspace/api-client-react";
+import { formatCents, formatDate } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
@@ -12,24 +12,8 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
 
-interface Payment {
-  id: string;
-  direction: "RECEIVED" | "SENT";
-  customerId: string | null;
-  customerName: string | null;
-  vendorId: string | null;
-  vendorName: string | null;
-  amountCents: number;
-  date: string;
-  method: string;
-  memo: string | null;
-}
-
 export default function PaymentsPage() {
-  const { data: payments = [] } = useQuery({
-    queryKey: ["payments"],
-    queryFn: () => apiFetch<Payment[]>("/payments"),
-  });
+  const { data: payments = [] } = useListPayments();
 
   return (
     <>

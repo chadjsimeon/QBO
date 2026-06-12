@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute, Link, useLocation } from "wouter";
 import { ArrowLeft, ArrowRight } from "lucide-react";
+import { getListBillsQueryKey } from "@workspace/api-client-react";
 import { apiFetch, formatCents, formatDate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -67,7 +68,7 @@ export default function PoDetailPage() {
     mutationFn: () =>
       apiFetch<{ billId: string }>(`/purchase-orders/${id}/convert`, { method: "POST" }),
     onSuccess: (d) => {
-      qc.invalidateQueries({ queryKey: ["bills"] });
+      qc.invalidateQueries({ queryKey: getListBillsQueryKey() });
       toast({ title: "Converted to bill" });
       navigate(`/bills/${d.billId}`);
     },

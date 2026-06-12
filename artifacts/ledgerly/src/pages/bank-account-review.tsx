@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useRoute, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useListAccounts } from "@workspace/api-client-react";
 import { ArrowLeft, Check, Ban, Undo2, Link2 } from "lucide-react";
 import { apiFetch, formatCents, formatDate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -78,10 +79,7 @@ export default function BankAccountReviewPage() {
     queryKey: ["bank-accounts"],
     queryFn: () => apiFetch<BankAccount[]>("/bank-accounts"),
   });
-  const { data: accounts = [] } = useQuery({
-    queryKey: ["accounts"],
-    queryFn: () => apiFetch<Account[]>("/accounts"),
-  });
+  const { data: accounts = [] } = useListAccounts();
   const { data: txns = [] } = useQuery({
     queryKey: ["bank-account-txns", id],
     queryFn: () => apiFetch<Txn[]>(`/bank-accounts/${id}/transactions`),

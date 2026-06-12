@@ -1,7 +1,15 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import { apiFetch } from "@/lib/api";
+import {
+  useListVendors,
+  useCreateVendor,
+  getUpdateVendorMutationOptions,
+  getDeleteVendorMutationOptions,
+  getListVendorsQueryKey,
+  type Vendor,
+  type VendorInput,
+} from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,22 +31,13 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/empty-state";
 
-interface Vendor {
-  id: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  address: string | null;
-  createdAt: string;
-}
-
 function VendorForm({
   initial,
   onSave,
   onClose,
 }: {
   initial?: Partial<Vendor>;
-  onSave: (data: Partial<Vendor>) => void;
+  onSave: (data: VendorInput) => void;
   onClose: () => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
@@ -84,37 +83,24 @@ export default function VendorsPage() {
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<{ open: boolean; editing?: Vendor }>({ open: false });
 
-  const { data: vendors = [] } = useQuery({
-    queryKey: ["vendors"],
-    queryFn: () => apiFetch<Vendor[]>("/vendors"),
-  });
+  const { data: vendors = [] } = useListVendors();
 
-  const create = useMutation({
-    mutationFn: (data: Partial<Vendor>) =>
-      apiFetch("/vendors", { method: "POST", body: JSON.stringify(data) }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["vendors"] });
-      setDialog({ open: false });
-    },
-  });
+  const onSaved = () => {
+    qc.invalidateQueries({ queryKey: getListVendorsQueryKey() });
+    setDialog({ open: false });
+  };
 
-  const update = useMutation({
-    mutationFn: ({ id, ...data }: Partial<Vendor>) =>
-      apiFetch(`/vendors/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["vendors"] });
-      setDialog({ open: false });
-    },
-  });
+  const create = useCreateVendor({ mutation: { onSuccess: onSaved } });
+  const update = useMutation(getUpdateVendorMutationOptions({ mutation: { onSuccess: onSaved } }));
+  const remove = useMutation(
+    getDeleteVendorMutationOptions({
+      mutation: { onSuccess: () => qc.invalidateQueries({ queryKey: getListVendorsQueryKey() }) },
+    }),
+  );
 
-  const remove = useMutation({
-    mutationFn: (id: string) => apiFetch(`/vendors/${id}`, { method: "DELETE" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["vendors"] }),
-  });
-
-  function onSave(data: Partial<Vendor>) {
-    if (dialog.editing) update.mutate({ ...data, id: dialog.editing.id });
-    else create.mutate(data);
+  function onSave(data: VendorInput) {
+    if (dialog.editing) update.mutate({ id: dialog.editing.id, data });
+    else create.mutate({ data });
   }
 
   return (
@@ -171,7 +157,7 @@ export default function VendorsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => confirm("Delete vendor?") && remove.mutate(v.id)}
+                        onClick={() => confirm("Delete vendor?") && remove.mutate({ id: v.id })}
                       >
                         <Trash2 className="h-4 w-4 text-muted-foreground" />
                       </Button>

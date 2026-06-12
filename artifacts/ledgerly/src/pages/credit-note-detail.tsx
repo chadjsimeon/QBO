@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute, Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
+import { useListInvoices, getListInvoicesQueryKey } from "@workspace/api-client-react";
 import { apiFetch, formatCents, formatDate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,14 +42,6 @@ interface CreditNote {
   lineItems: LineItem[];
   applications: Application[];
 }
-interface Invoice {
-  id: string;
-  number: string;
-  customerId: string;
-  status: string;
-  balanceCents: number;
-}
-
 export default function CreditNoteDetailPage() {
   const [, params] = useRoute("/credit-notes/:id");
   const id = params?.id;
@@ -61,10 +54,7 @@ export default function CreditNoteDetailPage() {
     queryFn: () => apiFetch<CreditNote>(`/credit-notes/${id}`),
     enabled: !!id,
   });
-  const { data: invoices = [] } = useQuery({
-    queryKey: ["invoices"],
-    queryFn: () => apiFetch<Invoice[]>("/invoices"),
-  });
+  const { data: invoices = [] } = useListInvoices();
 
   const apply = useMutation({
     mutationFn: (applications: Array<{ invoiceId: string; amountCents: number }>) =>
@@ -74,7 +64,7 @@ export default function CreditNoteDetailPage() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["credit-note", id] });
-      qc.invalidateQueries({ queryKey: ["invoices"] });
+      qc.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
       setAmounts({});
       toast({ title: "Credit applied" });
     },

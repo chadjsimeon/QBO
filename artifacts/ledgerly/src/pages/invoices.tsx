@@ -1,7 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { Link } from "wouter";
-import { apiFetch, formatCents, formatDate } from "@/lib/api";
+import { useListInvoices } from "@workspace/api-client-react";
+import { formatCents, formatDate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -15,25 +15,8 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
 
-interface Invoice {
-  id: string;
-  number: string;
-  customerId: string;
-  customerName: string | null;
-  status: string;
-  issueDate: string;
-  dueDate: string;
-  subtotalCents: number;
-  taxCents: number;
-  totalCents: number;
-  balanceCents: number;
-}
-
 export default function InvoicesPage() {
-  const { data: invoices = [] } = useQuery({
-    queryKey: ["invoices"],
-    queryFn: () => apiFetch<Invoice[]>("/invoices"),
-  });
+  const { data: invoices = [] } = useListInvoices();
 
   return (
     <>

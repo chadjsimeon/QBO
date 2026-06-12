@@ -1,7 +1,14 @@
 import { useRoute, useLocation } from "wouter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Send, Ban, Trash2, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
+import {
+  useGetInvoice,
+  getGetInvoiceQueryKey,
+  getListInvoicesQueryKey,
+  getVoidInvoiceMutationOptions,
+  getDeleteInvoiceMutationOptions,
+} from "@workspace/api-client-react";
 import { apiFetch, formatCents, formatDate } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -36,30 +43,6 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline" | "dest
   VOID: "secondary",
 };
 
-interface LineItem {
-  id: string;
-  description: string;
-  quantity: number;
-  unitPriceCents: number;
-  amountCents: number;
-  taxCents: number;
-}
-
-interface Invoice {
-  id: string;
-  number: string;
-  customerId: string;
-  customerName: string | null;
-  status: string;
-  issueDate: string;
-  dueDate: string;
-  subtotalCents: number;
-  taxCents: number;
-  totalCents: number;
-  balanceCents: number;
-  lineItems: LineItem[];
-}
-
 export default function InvoiceDetailPage() {
   const [, params] = useRoute("/invoices/:id");
   const [, navigate] = useLocation();
@@ -67,47 +50,48 @@ export default function InvoiceDetailPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
 
-  const {
-    data: invoice,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ["invoice", id],
-    queryFn: () => apiFetch<Invoice>(`/invoices/${id}`),
-    enabled: !!id,
-  });
+  const { data: invoice, isLoading, error } = useGetInvoice(id);
 
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: getGetInvoiceQueryKey(id) });
+    qc.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
+  };
+  const onError = (e: Error) =>
+    toast({ title: "Error", description: e.message, variant: "destructive" });
+
+  // Issue isn't in the OpenAPI spec yet; hand-rolled call, generated-key invalidation.
   const issueMutation = useMutation({
     mutationFn: () => apiFetch(`/invoices/${id}/issue`, { method: "POST" }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoice", id] });
-      qc.invalidateQueries({ queryKey: ["invoices"] });
+      refresh();
       toast({ title: "Invoice issued" });
     },
-    onError: (e: Error) =>
-      toast({ title: "Error", description: e.message, variant: "destructive" }),
+    onError,
   });
 
-  const voidMutation = useMutation({
-    mutationFn: () => apiFetch(`/invoices/${id}/void`, { method: "POST" }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoice", id] });
-      qc.invalidateQueries({ queryKey: ["invoices"] });
-      toast({ title: "Invoice voided" });
-    },
-    onError: (e: Error) =>
-      toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
+  const voidMutation = useMutation(
+    getVoidInvoiceMutationOptions({
+      mutation: {
+        onSuccess: () => {
+          refresh();
+          toast({ title: "Invoice voided" });
+        },
+        onError,
+      },
+    }),
+  );
 
-  const deleteMutation = useMutation({
-    mutationFn: () => apiFetch(`/invoices/${id}`, { method: "DELETE" }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["invoices"] });
-      navigate("/invoices");
-    },
-    onError: (e: Error) =>
-      toast({ title: "Error", description: e.message, variant: "destructive" }),
-  });
+  const deleteMutation = useMutation(
+    getDeleteInvoiceMutationOptions({
+      mutation: {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: getListInvoicesQueryKey() });
+          navigate("/invoices");
+        },
+        onError,
+      },
+    }),
+  );
 
   if (isLoading) return <div className="text-sm text-muted-foreground">Loading…</div>;
   if (error || !invoice) return <div className="text-sm text-destructive">Invoice not found.</div>;
@@ -158,7 +142,7 @@ export default function InvoiceDetailPage() {
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
-                        onClick={() => deleteMutation.mutate()}
+                        onClick={() => deleteMutation.mutate({ id })}
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       >
                         Delete
@@ -185,7 +169,7 @@ export default function InvoiceDetailPage() {
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction
-                      onClick={() => voidMutation.mutate()}
+                      onClick={() => voidMutation.mutate({ id })}
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
                       Void invoice
@@ -221,9 +205,8 @@ export default function InvoiceDetailPage() {
                   <TableCell className="text-right tabular-nums">
                     {formatCents(li.unitPriceCents)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {li.taxCents > 0 ? formatCents(li.taxCents) : "—"}
-                  </TableCell>
+                  {/* Per-line tax is not stored; document-level tax shows in the totals. */}
+                  <TableCell className="text-right tabular-nums">—</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatCents(li.amountCents)}
                   </TableCell>

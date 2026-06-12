@@ -1,6 +1,11 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Trash2, Info, ChevronDown } from "lucide-react";
+import {
+  useListAccounts,
+  getListAccountsQueryKey,
+  type Account,
+} from "@workspace/api-client-react";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,20 +29,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-
-interface Account {
-  id: string;
-  code: string;
-  name: string;
-  type: string;
-  subtype: string;
-  isActive: boolean;
-  parentId: string | null;
-  systemRole: string | null;
-  cashFlowCategory: string;
-  sortOrder: number;
-  description: string | null;
-}
 
 const ACCOUNT_TYPES = ["ASSET", "LIABILITY", "EQUITY", "INCOME", "EXPENSE"] as const;
 
@@ -346,17 +337,16 @@ export default function AccountsPage() {
   const [dialog, setDialog] = useState<{ open: boolean; editing?: Account }>({ open: false });
   const [error, setError] = useState<string | null>(null);
 
-  const { data: accounts = [] } = useQuery({
-    queryKey: ["accounts"],
-    queryFn: () => apiFetch<Account[]>("/accounts"),
-  });
+  const { data: accounts = [] } = useListAccounts();
 
+  // Account create/update/delete aren't in the OpenAPI spec yet; hand-rolled
+  // calls with generated-key invalidation so the migrated reads stay fresh.
   const create = useMutation({
     mutationFn: (
       data: Partial<Account> & { openingBalanceCents?: number; openingBalanceDate?: string },
     ) => apiFetch("/accounts", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["accounts"] });
+      qc.invalidateQueries({ queryKey: getListAccountsQueryKey() });
       setDialog({ open: false });
     },
     onError: (e: Error) => setError(e.message),
@@ -366,7 +356,7 @@ export default function AccountsPage() {
     mutationFn: ({ id, ...data }: Partial<Account>) =>
       apiFetch(`/accounts/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["accounts"] });
+      qc.invalidateQueries({ queryKey: getListAccountsQueryKey() });
       setDialog({ open: false });
     },
     onError: (e: Error) => setError(e.message),
@@ -374,7 +364,7 @@ export default function AccountsPage() {
 
   const remove = useMutation({
     mutationFn: (id: string) => apiFetch(`/accounts/${id}`, { method: "DELETE" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["accounts"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: getListAccountsQueryKey() }),
     onError: (e: Error) => setError(e.message),
   });
 

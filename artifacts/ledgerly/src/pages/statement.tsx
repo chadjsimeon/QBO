@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useListCustomers } from "@workspace/api-client-react";
 import { Printer } from "lucide-react";
 import { apiFetch, formatCents, formatDate, toDateInput } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -16,10 +17,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-interface Customer {
-  id: string;
-  name: string;
-}
 interface Entry {
   date: string;
   type: string;
@@ -43,10 +40,7 @@ export default function StatementPage() {
   const [from, setFrom] = useState(toDateInput(new Date(year, 0, 1)));
   const [to, setTo] = useState(toDateInput(new Date()));
 
-  const { data: customers = [] } = useQuery({
-    queryKey: ["customers"],
-    queryFn: () => apiFetch<Customer[]>("/customers"),
-  });
+  const { data: customers = [] } = useListCustomers();
   const { data: statement } = useQuery({
     queryKey: ["statement", customerId, from, to],
     queryFn: () => apiFetch<Statement>(`/statements/customer/${customerId}?from=${from}&to=${to}`),

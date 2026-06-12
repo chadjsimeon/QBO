@@ -213,7 +213,8 @@ export const ListAccountsResponseItem = zod.object({
   "parentId": zod.string().nullish(),
   "systemRole": zod.string().nullish(),
   "cashFlowCategory": zod.string(),
-  "sortOrder": zod.number()
+  "sortOrder": zod.number(),
+  "description": zod.string().nullish()
 })
 export const ListAccountsResponse = zod.array(ListAccountsResponseItem)
 

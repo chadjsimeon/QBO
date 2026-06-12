@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useLocation, useSearch, Link } from "wouter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight } from "lucide-react";
+import { useListAccounts, type Account } from "@workspace/api-client-react";
 import { apiFetch, formatCents, toDateInput } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,15 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-
-interface Account {
-  id: string;
-  code: string;
-  name: string;
-  type: string;
-  subtype?: string;
-  systemRole?: string | null;
-}
 
 const isBank = (a: Account) => a.subtype === "bank" || a.systemRole === "CASH";
 const isCard = (a: Account) => a.subtype === "credit_card";
@@ -36,10 +28,7 @@ export default function TransferFormPage() {
   const [amountCents, setAmount] = useState(0);
   const [memo, setMemo] = useState("");
 
-  const { data: accounts = [] } = useQuery({
-    queryKey: ["accounts"],
-    queryFn: () => apiFetch<Account[]>("/accounts"),
-  });
+  const { data: accounts = [] } = useListAccounts();
 
   const fromOptions = accounts.filter(ccMode ? isBank : isMoney);
   const toOptions = accounts.filter(ccMode ? isCard : isMoney);
