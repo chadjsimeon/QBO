@@ -2,13 +2,16 @@ import { useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useListVendors, useListAccounts, useListTaxRates } from "@workspace/api-client-react";
-import { Plus, Trash2, ArrowLeft } from "lucide-react";
-import { apiFetch, formatCents, toDateInput } from "@/lib/api";
+import { ArrowLeft } from "lucide-react";
+import { apiFetch, toDateInput } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LineItemsEditor } from "@/components/line-items-editor";
+import { useLineItems } from "@/hooks/use-line-items";
+import { nextDocNumber } from "@/hooks/use-next-doc-number";
 import { useToast } from "@/hooks/use-toast";
 
 interface Line {
@@ -37,7 +40,10 @@ export default function PoFormPage() {
     expectedDate: "",
     memo: "",
   });
-  const [lines, setLines] = useState<Line[]>([{ ...EMPTY }]);
+  const { lines, updateLine, addLine, removeLine, subtotalCents } = useLineItems(
+    EMPTY,
+    (l) => l.quantity * l.unitPriceCents,
+  );
 
   const { data: vendors = [] } = useListVendors();
   const { data: accounts = [] } = useListAccounts();
@@ -49,14 +55,12 @@ export default function PoFormPage() {
   });
   useEffect(() => {
     if (count !== undefined && !form.number)
-      setForm((f) => ({ ...f, number: `PO-${String(count + 1).padStart(4, "0")}` }));
+      setForm((f) => ({ ...f, number: nextDocNumber("PO", count) }));
   }, [count]);
 
   const expenseAccounts = accounts.filter((a) => a.type === "EXPENSE");
-  const updateLine = (i: number, f: keyof Line, v: string | number) =>
-    setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, [f]: v } : l)));
-  const subtotal = lines.reduce((s, l) => s + l.quantity * l.unitPriceCents, 0);
-  const valid = form.vendorId && subtotal > 0 && lines.every((l) => l.accountId && l.description);
+  const valid =
+    form.vendorId && subtotalCents > 0 && lines.every((l) => l.accountId && l.description);
 
   const save = useMutation({
     mutationFn: () =>
@@ -149,97 +153,70 @@ export default function PoFormPage() {
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Line items</CardTitle>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setLines((ls) => [...ls, { ...EMPTY }])}
-              >
-                <Plus className="h-4 w-4 mr-1" /> Add line
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {lines.map((line, i) => (
-              <div key={i} className="grid grid-cols-12 gap-2 items-start">
-                <div className="col-span-12 sm:col-span-4">
-                  <Input
-                    placeholder="Description"
-                    value={line.description}
-                    onChange={(e) => updateLine(i, "description", e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="col-span-4 sm:col-span-2">
-                  <Input
-                    type="number"
-                    placeholder="Qty"
-                    min={1}
-                    value={line.quantity}
-                    onChange={(e) => updateLine(i, "quantity", parseInt(e.target.value) || 1)}
-                    required
-                  />
-                </div>
-                <div className="col-span-8 sm:col-span-2">
-                  <Input
-                    type="number"
-                    placeholder="Price (cents)"
-                    min={0}
-                    value={line.unitPriceCents}
-                    onChange={(e) => updateLine(i, "unitPriceCents", parseInt(e.target.value) || 0)}
-                    required
-                  />
-                </div>
-                <div className="col-span-6 sm:col-span-2">
-                  <Select
-                    value={line.accountId}
-                    onChange={(e) => updateLine(i, "accountId", e.target.value)}
-                  >
-                    <option value="">Category…</option>
-                    {expenseAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.code} {a.name}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="col-span-5 sm:col-span-1">
-                  <Select
-                    value={line.taxRateId}
-                    onChange={(e) => updateLine(i, "taxRateId", e.target.value)}
-                  >
-                    <option value="">No tax</option>
-                    {taxRates.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="col-span-1 flex items-center justify-center">
-                  {lines.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setLines((ls) => ls.filter((_, idx) => idx !== i))}
-                    >
-                      <Trash2 className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  )}
-                </div>
+        <LineItemsEditor
+          lines={lines}
+          addLine={addLine}
+          removeLine={removeLine}
+          subtotalCents={subtotalCents}
+          renderRow={(line, i) => (
+            <>
+              <div className="col-span-12 sm:col-span-4">
+                <Input
+                  placeholder="Description"
+                  value={line.description}
+                  onChange={(e) => updateLine(i, "description", e.target.value)}
+                  required
+                />
               </div>
-            ))}
-            <div className="flex justify-end pt-2 text-sm">
-              <span className="text-muted-foreground mr-4">Subtotal:</span>
-              <span className="tabular-nums font-medium">{formatCents(subtotal)}</span>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="col-span-4 sm:col-span-2">
+                <Input
+                  type="number"
+                  placeholder="Qty"
+                  min={1}
+                  value={line.quantity}
+                  onChange={(e) => updateLine(i, "quantity", parseInt(e.target.value) || 1)}
+                  required
+                />
+              </div>
+              <div className="col-span-8 sm:col-span-2">
+                <Input
+                  type="number"
+                  placeholder="Price (cents)"
+                  min={0}
+                  value={line.unitPriceCents}
+                  onChange={(e) => updateLine(i, "unitPriceCents", parseInt(e.target.value) || 0)}
+                  required
+                />
+              </div>
+              <div className="col-span-6 sm:col-span-2">
+                <Select
+                  value={line.accountId}
+                  onChange={(e) => updateLine(i, "accountId", e.target.value)}
+                >
+                  <option value="">Category…</option>
+                  {expenseAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.code} {a.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div className="col-span-5 sm:col-span-1">
+                <Select
+                  value={line.taxRateId}
+                  onChange={(e) => updateLine(i, "taxRateId", e.target.value)}
+                >
+                  <option value="">No tax</option>
+                  {taxRates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            </>
+          )}
+        />
         <div className="flex justify-end gap-3">
           <Button type="button" variant="outline" asChild>
             <Link href="/purchase-orders">Cancel</Link>
