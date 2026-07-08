@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, accounts, trialBalanceImports } from "@workspace/db";
+import { db, accounts, trialBalanceImports, bankAccounts } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../lib/session";
 import { postEntry, findOrCreateOpeningBalanceEquity, getNetDebitByAccount } from "../lib/ledger";
@@ -10,19 +10,34 @@ router.use(requireAuth);
 const ACCOUNT_TYPES = ["ASSET", "LIABILITY", "EQUITY", "INCOME", "EXPENSE"] as const;
 type AccountType = (typeof ACCOUNT_TYPES)[number];
 
-// Common convention: leading digit of the account number maps to a statement type.
-function inferType(accountNumber: string, provided?: string): AccountType {
+// Subtypes that surface an account in the Banking tab (mirrors accounts.ts / banking.ts).
+const BANKING_SUBTYPES = ["bank", "savings", "credit_card"];
+
+// Well-known account names that must land in a specific statement section even
+// when the account number is missing or doesn't follow the leading-digit
+// convention (e.g. a chart that puts the name in the number column).
+const KNOWN_NAME_TYPES: Array<[RegExp, AccountType]> = [
+  [/opening balance equity/i, "EQUITY"],
+  [/retained earnings/i, "EQUITY"],
+  [/(owner'?s?|shareholder'?s?) (equity|capital|draw)/i, "EQUITY"],
+];
+
+// Resolve a type from (in priority order): an explicit type column, the leading
+// digit of the account number, then a well-known account name. Falls back to
+// EXPENSE only when nothing else matches.
+function inferType(accountNumber: string, accountName: string, provided?: string): AccountType {
   const up = (provided || "").trim().toUpperCase();
   if ((ACCOUNT_TYPES as readonly string[]).includes(up)) return up as AccountType;
   const first = accountNumber.trim()[0];
-  return (
-    (
-      { "1": "ASSET", "2": "LIABILITY", "3": "EQUITY", "4": "INCOME", "5": "EXPENSE" } as Record<
-        string,
-        AccountType
-      >
-    )[first] ?? "EXPENSE"
-  );
+  const byDigit = (
+    { "1": "ASSET", "2": "LIABILITY", "3": "EQUITY", "4": "INCOME", "5": "EXPENSE" } as Record<
+      string,
+      AccountType
+    >
+  )[first];
+  if (byDigit) return byDigit;
+  for (const [re, type] of KNOWN_NAME_TYPES) if (re.test(accountName)) return type;
+  return "EXPENSE";
 }
 
 interface ImportRow {
@@ -31,6 +46,7 @@ interface ImportRow {
   debitCents: number;
   creditCents: number;
   accountType?: string;
+  subtype?: string;
   description?: string;
 }
 
@@ -41,6 +57,7 @@ function normalizeRows(raw: any[]): ImportRow[] {
     debitCents: Number.isFinite(r.debitCents) ? Math.round(r.debitCents) : 0,
     creditCents: Number.isFinite(r.creditCents) ? Math.round(r.creditCents) : 0,
     accountType: r.accountType ? String(r.accountType) : undefined,
+    subtype: r.subtype ? String(r.subtype).trim() : undefined,
     description: r.description ? String(r.description) : undefined,
   }));
 }
@@ -95,7 +112,7 @@ router.post("/trial-balance/import/analyze", async (req, res) => {
       accountName: r.accountName,
       debitCents: r.debitCents,
       creditCents: r.creditCents,
-      type: inferType(r.accountNumber, r.accountType),
+      type: inferType(r.accountNumber, r.accountName, r.accountType),
       status,
       existingAccountId: match?.id ?? null,
       existingName: match?.name ?? null,
@@ -166,7 +183,7 @@ router.post("/trial-balance/import/commit", async (req, res) => {
     }
     dealt.add(r.accountNumber);
 
-    const type = inferType(r.accountNumber, r.accountType);
+    const type = inferType(r.accountNumber, r.accountName, r.accountType);
     let acct = byCode.get(r.accountNumber);
 
     try {
@@ -187,6 +204,7 @@ router.post("/trial-balance/import/commit", async (req, res) => {
         const sortOrder = Number.isFinite(Number(r.accountNumber))
           ? Math.min(Number(r.accountNumber), 99999)
           : 9000 + i;
+        const subtype = r.subtype || "general";
         const [created] = await db
           .insert(accounts)
           .values({
@@ -194,7 +212,7 @@ router.post("/trial-balance/import/commit", async (req, res) => {
             code: r.accountNumber,
             name: r.accountName,
             type,
-            subtype: "general",
+            subtype,
             description: r.description?.trim() || null,
             cashFlowCategory: "NONE",
             sortOrder,
@@ -203,6 +221,19 @@ router.post("/trial-balance/import/commit", async (req, res) => {
         acct = created;
         byCode.set(r.accountNumber, created);
         accountsCreated++;
+
+        // Auto-connect bank/savings/credit_card accounts so they show up in the
+        // Banking tab immediately (mirrors the POST /accounts behavior).
+        if (BANKING_SUBTYPES.includes(subtype)) {
+          await db
+            .insert(bankAccounts)
+            .values({
+              organizationId: orgId,
+              accountId: created.id,
+              institutionName: created.name,
+            })
+            .onConflictDoNothing();
+        }
       }
 
       totalDebitsCents += r.debitCents;

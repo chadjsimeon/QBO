@@ -136,10 +136,27 @@ router.get("/reports/balance-sheet", async (req, res) => {
   const liabilities = buildSection("LIABILITY", tree, net, false);
   const equity = buildSection("EQUITY", tree, net, false);
 
+  // Income/expense accounts are never closed into Retained Earnings, so the
+  // period's earnings live in the P&L accounts. Surface that net as a computed
+  // equity line ("Net Income"); without it the balance sheet is off by exactly
+  // the net income and Assets != Liabilities + Equity.
+  const income = buildSection("INCOME", tree, net, false);
+  const expenses = buildSection("EXPENSE", tree, net, false);
+  const netIncomeCents = income.total - expenses.total;
+  equity.rows.push({
+    id: "net-income",
+    code: "",
+    name: "Net Income",
+    amountCents: netIncomeCents,
+    depth: 0,
+  });
+  equity.total += netIncomeCents;
+
   res.json({
     assets,
     liabilities,
     equity,
+    netIncomeCents,
     asOf: asOfDate.toISOString(),
   });
 });

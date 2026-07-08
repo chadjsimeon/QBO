@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Link } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import Papa from "papaparse";
@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { apiFetch, formatCents } from "@/lib/api";
 import { downloadCsv } from "@/lib/export";
+import { DETAIL_TYPES, defaultSubtypeFor } from "@/lib/account-detail-types";
 import {
   tbAutodetectMapping,
   buildTbRows,
@@ -51,6 +52,7 @@ interface ReviewRow {
   debitCents: number;
   creditCents: number;
   accountType: string;
+  subtype: string;
   description: string;
   status: "create" | "match";
   existingName: string | null;
@@ -182,6 +184,7 @@ export default function TrialBalanceImportPage() {
             debitCents: r.debitCents,
             creditCents: r.creditCents,
             accountType: r.type,
+            subtype: defaultSubtypeFor(r.type, r.accountName),
             description: "",
             status: r.status as "create" | "match",
             existingName: r.existingName,
@@ -205,6 +208,7 @@ export default function TrialBalanceImportPage() {
           debitCents: r.debitCents,
           creditCents: r.creditCents,
           accountType: r.accountType,
+          subtype: r.subtype,
           description: r.description,
         }));
       return apiFetch<CommitResult>("/trial-balance/import/commit", {
@@ -541,6 +545,7 @@ export default function TrialBalanceImportPage() {
                     <TableHead className="w-24">Number</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead className="w-32">Type</TableHead>
+                    <TableHead className="w-40">Detail type</TableHead>
                     <TableHead className="text-right w-28">Debit</TableHead>
                     <TableHead className="text-right w-28">Credit</TableHead>
                     <TableHead className="w-20">Status</TableHead>
@@ -577,7 +582,13 @@ export default function TrialBalanceImportPage() {
                                 onChange={(e) =>
                                   setReview((rs) =>
                                     rs.map((x, idx) =>
-                                      idx === i ? { ...x, accountType: e.target.value } : x,
+                                      idx === i
+                                        ? {
+                                            ...x,
+                                            accountType: e.target.value,
+                                            subtype: defaultSubtypeFor(e.target.value),
+                                          }
+                                        : x,
                                     ),
                                   )
                                 }
@@ -589,6 +600,7 @@ export default function TrialBalanceImportPage() {
                                 ))}
                               </Select>
                             </TableCell>
+                            <TableCell>{detailTypeCell(r, i, setReview)}</TableCell>
                             <TableCell>
                               <Input
                                 type="number"
@@ -659,6 +671,7 @@ export default function TrialBalanceImportPage() {
                                 {r.accountType}
                               </Badge>
                             </TableCell>
+                            <TableCell>{detailTypeCell(r, i, setReview)}</TableCell>
                             <TableCell className="text-right tabular-nums">
                               {r.debitCents ? formatCents(r.debitCents) : ""}
                             </TableCell>
@@ -834,6 +847,29 @@ export default function TrialBalanceImportPage() {
         </div>
       )}
     </>
+  );
+}
+
+// Detail-type picker for the Review table. New accounts get an inline dropdown so
+// banks/credit cards can be flagged without entering edit mode; matched accounts keep
+// their existing subtype on the server, so we just show a placeholder.
+function detailTypeCell(r: ReviewRow, i: number, setReview: Dispatch<SetStateAction<ReviewRow[]>>) {
+  if (r.status !== "create") return <span className="text-muted-foreground">—</span>;
+  const options = DETAIL_TYPES[r.accountType] ?? [];
+  return (
+    <Select
+      className="h-8"
+      value={r.subtype}
+      onChange={(e) =>
+        setReview((rs) => rs.map((x, idx) => (idx === i ? { ...x, subtype: e.target.value } : x)))
+      }
+    >
+      {options.map((d) => (
+        <option key={d.value} value={d.value}>
+          {d.label}
+        </option>
+      ))}
+    </Select>
   );
 }
 

@@ -7,6 +7,7 @@ import {
   type Account,
 } from "@workspace/api-client-react";
 import { apiFetch } from "@/lib/api";
+import { DETAIL_TYPES, detailLabel } from "@/lib/account-detail-types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,52 +41,6 @@ const TYPE_LABELS: Record<string, string> = {
   EXPENSE: "Expense",
 };
 
-const DETAIL_TYPES: Record<string, Array<{ value: string; label: string }>> = {
-  ASSET: [
-    { value: "bank", label: "Bank" },
-    { value: "savings", label: "Savings" },
-    { value: "cash_on_hand", label: "Cash on hand" },
-    { value: "receivable", label: "Accounts receivable (A/R)" },
-    { value: "inventory", label: "Inventory" },
-    { value: "prepaid", label: "Prepaid expenses" },
-    { value: "fixed", label: "Fixed assets" },
-    { value: "accumulated_depreciation", label: "Accumulated depreciation" },
-    { value: "general", label: "Other asset" },
-  ],
-  LIABILITY: [
-    { value: "payable", label: "Accounts payable (A/P)" },
-    { value: "credit_card", label: "Credit card" },
-    { value: "tax", label: "Sales tax payable" },
-    { value: "other_current", label: "Other current liabilities" },
-    { value: "deferred_revenue", label: "Deferred revenue" },
-    { value: "long_term", label: "Long-term liabilities" },
-    { value: "general", label: "Other liability" },
-  ],
-  EQUITY: [
-    { value: "equity", label: "Owner's equity" },
-    { value: "retained", label: "Retained earnings" },
-    { value: "general", label: "Opening balance equity" },
-  ],
-  INCOME: [
-    { value: "revenue", label: "Service/fee income" },
-    { value: "product_sales", label: "Sales of product income" },
-    { value: "other_income", label: "Other primary income" },
-    { value: "general", label: "Other income" },
-  ],
-  EXPENSE: [
-    { value: "cogs", label: "Cost of goods sold" },
-    { value: "payroll", label: "Payroll expenses" },
-    { value: "facilities", label: "Rent or lease" },
-    { value: "utilities", label: "Utilities" },
-    { value: "software", label: "Office/General administrative" },
-    { value: "travel", label: "Travel expenses" },
-    { value: "marketing", label: "Advertising/Promotional" },
-    { value: "professional", label: "Legal & professional fees" },
-    { value: "bank_fees", label: "Bank charges" },
-    { value: "general", label: "Other business expenses" },
-  ],
-};
-
 const FINANCIAL_STATEMENT: Record<string, string> = {
   ASSET: "Balance Sheet",
   LIABILITY: "Balance Sheet",
@@ -93,10 +48,6 @@ const FINANCIAL_STATEMENT: Record<string, string> = {
   INCOME: "Profit & Loss",
   EXPENSE: "Profit & Loss",
 };
-
-function detailLabel(type: string, subtype: string) {
-  return DETAIL_TYPES[type]?.find((d) => d.value === subtype)?.label ?? subtype;
-}
 
 function AccountForm({
   initial,

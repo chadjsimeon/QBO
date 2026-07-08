@@ -84,7 +84,7 @@ function ProfitLossReport() {
   const [start, setStart] = useState(`${today.getFullYear()}-01-01`);
   const [end, setEnd] = useState(today.toISOString().slice(0, 10));
 
-  const { data, refetch, isFetching } = useQuery({
+  const { data, refetch, isFetching, error } = useQuery({
     queryKey: ["pl", start, end],
     queryFn: () => apiFetch<ProfitLoss>(`/reports/profit-loss?start=${start}&end=${end}`),
   });
@@ -114,6 +114,12 @@ function ProfitLossReport() {
           {isFetching ? "Loading…" : "Run report"}
         </Button>
       </div>
+
+      {error && (
+        <p className="text-sm text-destructive">
+          Could not load report: {error instanceof Error ? error.message : "Unknown error"}
+        </p>
+      )}
 
       {data && (
         <>
@@ -155,7 +161,7 @@ function BalanceSheetReport() {
   const today = new Date().toISOString().slice(0, 10);
   const [asOf, setAsOf] = useState(today);
 
-  const { data, refetch, isFetching } = useQuery({
+  const { data, refetch, isFetching, error } = useQuery({
     queryKey: ["bs", asOf],
     queryFn: () => apiFetch<BalanceSheet>(`/reports/balance-sheet?asOf=${asOf}`),
   });
@@ -176,6 +182,12 @@ function BalanceSheetReport() {
           {isFetching ? "Loading…" : "Run report"}
         </Button>
       </div>
+
+      {error && (
+        <p className="text-sm text-destructive">
+          Could not load report: {error instanceof Error ? error.message : "Unknown error"}
+        </p>
+      )}
 
       {data && (
         <>
